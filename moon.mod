@@ -8,7 +8,7 @@ repository = "https://github.com/cxh123-alt/OCPP"
 
 license = "MIT"
 
-keywords = ["ocpp", "ev-charging", "json-rpc", "protocol", "moonbit"]
+keywords = [ "ocpp", "ev-charging", "json-rpc", "protocol", "moonbit" ]
 
 description = "OCPP 1.6J and 2.0.1 for MoonBit: JSON-RPC envelope, typed payloads, charge point and central system state."
 
