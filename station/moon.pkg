@@ -1,0 +1,6 @@
+import {
+  "cxh123-alt/ocpp/schema" @schema,
+  "cxh123-alt/ocpp/v16" @v16,
+  "cxh123-alt/ocpp/v2" @v2,
+  "cxh123-alt/ocpp/wire" @wire,
+}
