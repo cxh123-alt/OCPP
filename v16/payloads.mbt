@@ -734,3 +734,105 @@ pub fn ChangeConfigurationResponse::from_json(
   }
   { status, }
 }
+
+///|
+pub(all) struct GetDiagnostics {
+  location : String?
+  retries : Int?
+  retry_interval : Int?
+  start_time : String?
+  stop_time : String?
+} derive(Debug, Eq)
+
+///|
+pub fn GetDiagnostics::to_json(self : GetDiagnostics) -> Json {
+  let fields : Array[(String, Json)] = []
+  match self.location {
+    Some(value) => fields.push(("location", @schema.text(value)))
+    None => ()
+  }
+  match self.retries {
+    Some(value) => fields.push(("retries", @schema.integer(value)))
+    None => ()
+  }
+  match self.retry_interval {
+    Some(value) => fields.push(("retryInterval", @schema.integer(value)))
+    None => ()
+  }
+  match self.start_time {
+    Some(value) => fields.push(("startTime", @schema.text(value)))
+    None => ()
+  }
+  match self.stop_time {
+    Some(value) => fields.push(("stopTime", @schema.text(value)))
+    None => ()
+  }
+  @schema.obj(fields)
+}
+
+///|
+pub fn GetDiagnostics::from_json(json : Json) -> GetDiagnostics raise @schema.SchemaError {
+  {
+    location: @schema.opt_string(json, "location"),
+    retries: @schema.opt_int(json, "retries"),
+    retry_interval: @schema.opt_int(json, "retryInterval"),
+    start_time: @schema.opt_string(json, "startTime"),
+    stop_time: @schema.opt_string(json, "stopTime"),
+  }
+}
+
+///|
+pub(all) struct GetDiagnosticsResponse {
+  file_name : String?
+} derive(Debug, Eq)
+
+///|
+pub fn GetDiagnosticsResponse::to_json(self : GetDiagnosticsResponse) -> Json {
+  let fields : Array[(String, Json)] = []
+  match self.file_name {
+    Some(value) => fields.push(("fileName", @schema.text(value)))
+    None => ()
+  }
+  @schema.obj(fields)
+}
+
+///|
+pub fn GetDiagnosticsResponse::from_json(
+  json : Json,
+) -> GetDiagnosticsResponse raise @schema.SchemaError {
+  { file_name: @schema.opt_string(json, "fileName") }
+}
+
+///|
+pub(all) struct DiagnosticsStatusNotification {
+  status : String
+} derive(Debug, Eq)
+
+///|
+pub fn DiagnosticsStatusNotification::to_json(self : DiagnosticsStatusNotification) -> Json {
+  @schema.obj([("status", @schema.text(self.status))])
+}
+
+///|
+pub fn DiagnosticsStatusNotification::from_json(
+  json : Json,
+) -> DiagnosticsStatusNotification raise @schema.SchemaError {
+  { status: @schema.get_string(json, "status") }
+}
+
+///|
+pub(all) struct FirmwareStatusNotification {
+  status : String
+} derive(Debug, Eq)
+
+///|
+pub fn FirmwareStatusNotification::to_json(self : FirmwareStatusNotification) -> Json {
+  @schema.obj([("status", @schema.text(self.status))])
+}
+
+///|
+pub fn FirmwareStatusNotification::from_json(
+  json : Json,
+) -> FirmwareStatusNotification raise @schema.SchemaError {
+  { status: @schema.get_string(json, "status") }
+}

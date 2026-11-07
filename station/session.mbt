@@ -329,6 +329,15 @@ fn Session::reply_16(self : Session, call : @wire.Call) -> String? {
       }
       Some(result_frame(call.id, payload.to_json()))
     }
+    "GetDiagnostics" => {
+      let _request = @v16.GetDiagnostics::from_json(call.payload) catch {
+        _ => return None
+      }
+      let payload : @v16.GetDiagnosticsResponse = {
+        file_name: Some("diag-20261107.log"),
+      }
+      Some(result_frame(call.id, payload.to_json()))
+    }
     _ => Some(error_frame(call.id, @wire.NOT_SUPPORTED, "action not supported"))
   }
 }

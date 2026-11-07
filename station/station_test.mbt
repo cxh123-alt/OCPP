@@ -150,3 +150,21 @@ test "get variables is answered per request item" {
     _ => fail("expected a result")
   }
 }
+
+test "get diagnostics returns a file name" {
+  let session = Session::new(ChargePoint::new("CP-9", Version::V16), clock())
+  let command = @wire.encode(
+    @wire.Frame::Call({
+      id: "cs-5",
+      action: "GetDiagnostics",
+      payload: @schema.obj([("location", @schema.text("ftp://logs.example/"))]),
+    }),
+  )
+  let replies = session.handle(command)
+  match @wire.parse(replies[0]) {
+    @wire.Frame::Result(result) => {
+      assert_eq(@schema.get_string(result.payload, "fileName"), "diag-20261107.log")
+    }
+    _ => fail("expected a result")
+  }
+}

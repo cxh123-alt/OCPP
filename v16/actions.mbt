@@ -16,6 +16,9 @@ pub(all) enum Request {
   ChangeConfiguration(ChangeConfiguration)
   GetConfiguration(GetConfiguration)
   RemoteTrigger(RemoteTrigger)
+  GetDiagnostics(GetDiagnostics)
+  DiagnosticsStatusNotification(DiagnosticsStatusNotification)
+  FirmwareStatusNotification(FirmwareStatusNotification)
   Reset(Reset)
 } derive(Debug, Eq)
 
@@ -34,6 +37,9 @@ pub fn Request::action(self : Request) -> String {
     ChangeConfiguration(_) => "ChangeConfiguration"
     GetConfiguration(_) => "GetConfiguration"
     RemoteTrigger(_) => "RemoteTrigger"
+    GetDiagnostics(_) => "GetDiagnostics"
+    DiagnosticsStatusNotification(_) => "DiagnosticsStatusNotification"
+    FirmwareStatusNotification(_) => "FirmwareStatusNotification"
     Reset(_) => "Reset"
   }
 }
@@ -53,6 +59,9 @@ pub fn Request::to_json(self : Request) -> Json {
     ChangeConfiguration(value) => value.to_json()
     GetConfiguration(value) => value.to_json()
     RemoteTrigger(value) => value.to_json()
+    GetDiagnostics(value) => value.to_json()
+    DiagnosticsStatusNotification(value) => value.to_json()
+    FirmwareStatusNotification(value) => value.to_json()
     Reset(value) => value.to_json()
   }
 }
@@ -81,6 +90,11 @@ pub fn request_of(
       ChangeConfiguration(ChangeConfiguration::from_json(payload))
     "GetConfiguration" => GetConfiguration(GetConfiguration::from_json(payload))
     "RemoteTrigger" => RemoteTrigger(RemoteTrigger::from_json(payload))
+    "GetDiagnostics" => GetDiagnostics(GetDiagnostics::from_json(payload))
+    "DiagnosticsStatusNotification" =>
+      DiagnosticsStatusNotification(DiagnosticsStatusNotification::from_json(payload))
+    "FirmwareStatusNotification" =>
+      FirmwareStatusNotification(FirmwareStatusNotification::from_json(payload))
     "Reset" => Reset(Reset::from_json(payload))
     _ => raise @schema.UnknownCode(action)
   }
@@ -93,6 +107,8 @@ pub fn from_charge_point(action : String) -> Bool {
     "BootNotification" | "Heartbeat" | "Authorize" => true
     "StartTransaction" | "StopTransaction" | "MeterValues" => true
     "StatusNotification" => true
+    "DiagnosticsStatusNotification" => true
+    "FirmwareStatusNotification" => true
     _ => false
   }
 }

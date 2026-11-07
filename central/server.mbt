@@ -154,6 +154,8 @@ fn Central::answer(self : Central, call : @wire.Call) -> String? {
       record.last_status = status
       Some(result_frame(call.id, @schema.empty()))
     }
+    "DiagnosticsStatusNotification" => Some(result_frame(call.id, @schema.empty()))
+    "FirmwareStatusNotification" => Some(result_frame(call.id, @schema.empty()))
     "Reset" => {
       let body = @schema.obj([("status", @schema.text("Accepted"))])
       Some(result_frame(call.id, body))

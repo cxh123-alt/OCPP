@@ -146,3 +146,29 @@ test "configuration actions are in the table" {
   assert_eq(request.action(), "ChangeConfiguration")
   assert_true(!from_charge_point("ChangeConfiguration"))
 }
+
+test "get diagnostics keeps the optional upload window" {
+  let request : GetDiagnostics = {
+    location: Some("ftp://logs.example/"),
+    retries: Some(3),
+    retry_interval: Some(60),
+    start_time: Some("2026-11-07T00:00:00Z"),
+    stop_time: None,
+  }
+  let back = GetDiagnostics::from_json(request.to_json())
+  assert_eq(back, request)
+  assert_eq(back.retries, Some(3))
+}
+
+test "diagnostics and firmware notifications carry one status" {
+  let diagnostics : DiagnosticsStatusNotification = { status: "Uploaded" }
+  assert_eq(DiagnosticsStatusNotification::from_json(diagnostics.to_json()), diagnostics)
+  let firmware : FirmwareStatusNotification = { status: "Installed" }
+  assert_eq(FirmwareStatusNotification::from_json(firmware.to_json()), firmware)
+}
+
+test "notification directions are upstream" {
+  assert_true(from_charge_point("DiagnosticsStatusNotification"))
+  assert_true(from_charge_point("FirmwareStatusNotification"))
+  assert_true(!from_charge_point("GetDiagnostics"))
+}
