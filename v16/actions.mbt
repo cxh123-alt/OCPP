@@ -92,7 +92,9 @@ pub fn request_of(
     "RemoteTrigger" => RemoteTrigger(RemoteTrigger::from_json(payload))
     "GetDiagnostics" => GetDiagnostics(GetDiagnostics::from_json(payload))
     "DiagnosticsStatusNotification" =>
-      DiagnosticsStatusNotification(DiagnosticsStatusNotification::from_json(payload))
+      DiagnosticsStatusNotification(
+        DiagnosticsStatusNotification::from_json(payload),
+      )
     "FirmwareStatusNotification" =>
       FirmwareStatusNotification(FirmwareStatusNotification::from_json(payload))
     "Reset" => Reset(Reset::from_json(payload))

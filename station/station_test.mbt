@@ -151,6 +151,7 @@ test "get variables is answered per request item" {
   }
 }
 
+///|
 test "get diagnostics returns a file name" {
   let session = Session::new(ChargePoint::new("CP-9", Version::V16), clock())
   let command = @wire.encode(
@@ -162,9 +163,11 @@ test "get diagnostics returns a file name" {
   )
   let replies = session.handle(command)
   match @wire.parse(replies[0]) {
-    @wire.Frame::Result(result) => {
-      assert_eq(@schema.get_string(result.payload, "fileName"), "diag-20261107.log")
-    }
+    @wire.Frame::Result(result) =>
+      assert_eq(
+        @schema.get_string(result.payload, "fileName"),
+        "diag-20261107.log",
+      )
     _ => fail("expected a result")
   }
 }

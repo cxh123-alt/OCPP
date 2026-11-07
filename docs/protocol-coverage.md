@@ -20,10 +20,13 @@
 | RemoteTrigger | 后台 → 桩 | 是 | — | v16 + station |
 | GetVariables | 后台 → 桩 | — | 是 | v2 + station |
 | SetVariables | 后台 → 桩 | — | 是 | v2 + station |
+| GetDiagnostics | 后台 → 桩 | 是 | — | v16 + station |
+| DiagnosticsStatusNotification | 桩 → 后台 | 是 | — | v16 + central |
+| FirmwareStatusNotification | 桩 → 后台 | 是 | — | v16 + central |
 
 ## 未实现
 
-**1.6J**：ReserveNow / CancelReservation、UnlockConnector、ChangeAvailability、SendLocalList、GetDiagnostics、DiagnosticsStatusNotification、FirmwareStatusNotification、DataTransfer，以及 Smart Charging 的全部动作。
+**1.6J**：ReserveNow / CancelReservation、UnlockConnector、ChangeAvailability、SendLocalList、DataTransfer，以及 Smart Charging 的全部动作。
 
 **2.0.1**：Security 事件、CertificateSigned、SetChargingProfile、GetCompositeSchedule、UpdateFirmware、PublishFirmware、ReserveNow、UnlockConnector、DataTransfer、DisplayMessage。
 

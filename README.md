@@ -24,6 +24,7 @@ OCPP 1.6J 和 2.0.1 的 MoonBit 实现。给充电桩和后台之间那段 WebSo
 | 下发 | RemoteStart、RemoteStop、Reset | RequestStart、RequestStop、Reset |
 | 配置 | ChangeConfiguration、GetConfiguration | GetVariables、SetVariables |
 | 触发 | RemoteTrigger | — |
+| 诊断 | GetDiagnostics、DiagnosticsStatusNotification、FirmwareStatusNotification | — |
 
 不在表里的动作不会崩：桩侧回 `NotSupported`，后台侧回 `NotImplemented`，两边都是合法的 CALLERROR。
 
@@ -73,7 +74,7 @@ cli/      命令行
 
 ```bash
 moon check --deny-warn
-moon test --deny-warn      # 49 个用例
+moon test --deny-warn      # 53 个用例
 moon fmt --check
 ```
 

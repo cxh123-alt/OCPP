@@ -771,7 +771,9 @@ pub fn GetDiagnostics::to_json(self : GetDiagnostics) -> Json {
 }
 
 ///|
-pub fn GetDiagnostics::from_json(json : Json) -> GetDiagnostics raise @schema.SchemaError {
+pub fn GetDiagnostics::from_json(
+  json : Json,
+) -> GetDiagnostics raise @schema.SchemaError {
   {
     location: @schema.opt_string(json, "location"),
     retries: @schema.opt_int(json, "retries"),
@@ -800,7 +802,7 @@ pub fn GetDiagnosticsResponse::to_json(self : GetDiagnosticsResponse) -> Json {
 pub fn GetDiagnosticsResponse::from_json(
   json : Json,
 ) -> GetDiagnosticsResponse raise @schema.SchemaError {
-  { file_name: @schema.opt_string(json, "fileName") }
+  { file_name: @schema.opt_string(json, "fileName"), }
 }
 
 ///|
@@ -809,7 +811,9 @@ pub(all) struct DiagnosticsStatusNotification {
 } derive(Debug, Eq)
 
 ///|
-pub fn DiagnosticsStatusNotification::to_json(self : DiagnosticsStatusNotification) -> Json {
+pub fn DiagnosticsStatusNotification::to_json(
+  self : DiagnosticsStatusNotification,
+) -> Json {
   @schema.obj([("status", @schema.text(self.status))])
 }
 
@@ -817,7 +821,7 @@ pub fn DiagnosticsStatusNotification::to_json(self : DiagnosticsStatusNotificati
 pub fn DiagnosticsStatusNotification::from_json(
   json : Json,
 ) -> DiagnosticsStatusNotification raise @schema.SchemaError {
-  { status: @schema.get_string(json, "status") }
+  { status: @schema.get_string(json, "status"), }
 }
 
 ///|
@@ -826,7 +830,9 @@ pub(all) struct FirmwareStatusNotification {
 } derive(Debug, Eq)
 
 ///|
-pub fn FirmwareStatusNotification::to_json(self : FirmwareStatusNotification) -> Json {
+pub fn FirmwareStatusNotification::to_json(
+  self : FirmwareStatusNotification,
+) -> Json {
   @schema.obj([("status", @schema.text(self.status))])
 }
 
@@ -834,5 +840,5 @@ pub fn FirmwareStatusNotification::to_json(self : FirmwareStatusNotification) ->
 pub fn FirmwareStatusNotification::from_json(
   json : Json,
 ) -> FirmwareStatusNotification raise @schema.SchemaError {
-  { status: @schema.get_string(json, "status") }
+  { status: @schema.get_string(json, "status"), }
 }
