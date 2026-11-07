@@ -1,0 +1,6 @@
+import {
+  "cxh123-alt/ocpp/station" @station,
+  "cxh123-alt/ocpp/central" @central,
+  "cxh123-alt/ocpp/wire" @wire,
+  "cxh123-alt/ocpp/schema" @schema,
+}
