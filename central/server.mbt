@@ -123,6 +123,11 @@ fn Central::answer(self : Central, call : @wire.Call) -> String? {
       ])
       Some(result_frame(call.id, body))
     }
+    "StopTransaction" => {
+      let record = self.record("station")
+      record.transactions = record.transactions + 1
+      Some(result_frame(call.id, @schema.empty()))
+    }
     "TransactionEvent" => {
       self.next_transaction = self.next_transaction + 1
       let body = @schema.obj([
