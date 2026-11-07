@@ -293,6 +293,34 @@ fn Session::reply_16(self : Session, call : @wire.Call) -> String? {
       }
       Some(result_frame(call.id, payload.to_json()))
     }
+    "ChangeConfiguration" => {
+      let _request = @v16.ChangeConfiguration::from_json(call.payload) catch {
+        _ => return None
+      }
+      let payload : @v16.ChangeConfigurationResponse = {
+        status: @schema.ConfigurationStatus::Accepted,
+      }
+      Some(result_frame(call.id, payload.to_json()))
+    }
+    "GetConfiguration" => {
+      let payload : @v16.GetConfigurationResponse = {
+        configuration_key: [
+          { key: "WebSocketPingInterval", is_readonly: false, value: Some("60") },
+          { key: "MeterValueSampleInterval", is_readonly: false, value: Some("300") },
+        ],
+        unknown_key: None,
+      }
+      Some(result_frame(call.id, payload.to_json()))
+    }
+    "RemoteTrigger" => {
+      let _request = @v16.RemoteTrigger::from_json(call.payload) catch {
+        _ => return None
+      }
+      let payload : @v16.RequestStatusResponse = {
+        status: @schema.RequestStatus::Accepted,
+      }
+      Some(result_frame(call.id, payload.to_json()))
+    }
     _ => Some(error_frame(call.id, @wire.NOT_SUPPORTED, "action not supported"))
   }
 }

@@ -542,3 +542,176 @@ fn push_opt(
     None => ()
   }
 }
+
+///|
+pub(all) struct ChangeConfiguration {
+  key : String
+  value : String
+} derive(Debug, Eq)
+
+///|
+pub fn ChangeConfiguration::to_json(self : ChangeConfiguration) -> Json {
+  @schema.obj([("key", @schema.text(self.key)), ("value", @schema.text(self.value))])
+}
+
+///|
+pub fn ChangeConfiguration::from_json(
+  json : Json,
+) -> ChangeConfiguration raise @schema.SchemaError {
+  { key: @schema.get_string(json, "key"), value: @schema.get_string(json, "value") }
+}
+
+///|
+pub(all) struct ConfigurationKey {
+  key : String
+  is_readonly : Bool
+  value : String?
+} derive(Debug, Eq)
+
+///|
+pub fn ConfigurationKey::to_json(self : ConfigurationKey) -> Json {
+  let fields : Array[(String, Json)] = [
+    ("key", @schema.text(self.key)),
+    ("readonly", @schema.boolean(self.is_readonly)),
+  ]
+  match self.value {
+    Some(value) => fields.push(("value", @schema.text(value)))
+    None => ()
+  }
+  @schema.obj(fields)
+}
+
+///|
+pub fn ConfigurationKey::from_json(json : Json) -> ConfigurationKey raise @schema.SchemaError {
+  {
+    key: @schema.get_string(json, "key"),
+    is_readonly: @schema.get_bool(json, "readonly"),
+    value: @schema.opt_string(json, "value"),
+  }
+}
+
+///|
+pub(all) struct GetConfiguration {
+  keys : Array[String]?
+} derive(Debug, Eq)
+
+///|
+pub fn GetConfiguration::to_json(self : GetConfiguration) -> Json {
+  let fields : Array[(String, Json)] = []
+  match self.keys {
+    Some(keys) => {
+      let items : Array[Json] = []
+      for key in keys {
+        items.push(@schema.text(key))
+      }
+      fields.push(("key", Json::array(items)))
+    }
+    None => ()
+  }
+  @schema.obj(fields)
+}
+
+///|
+pub fn GetConfiguration::from_json(json : Json) -> GetConfiguration raise @schema.SchemaError {
+  let keys = match @schema.opt_array(json, "key") {
+    Some(items) => {
+      let result : Array[String] = []
+      for item in items {
+        match item {
+          Json::String(value) => result.push(value)
+          _ => raise @schema.WrongType("key")
+        }
+      }
+      Some(result)
+    }
+    None => None
+  }
+  { keys, }
+}
+
+///|
+pub(all) struct GetConfigurationResponse {
+  configuration_key : Array[ConfigurationKey]
+  unknown_key : Array[String]?
+} derive(Debug, Eq)
+
+///|
+pub fn GetConfigurationResponse::to_json(self : GetConfigurationResponse) -> Json {
+  let items : Array[Json] = []
+  for key in self.configuration_key {
+    items.push(key.to_json())
+  }
+  let fields : Array[(String, Json)] = [("configurationKey", Json::array(items))]
+  match self.unknown_key {
+    Some(keys) => {
+      let raw : Array[Json] = []
+      for key in keys {
+        raw.push(@schema.text(key))
+      }
+      fields.push(("unknownKey", Json::array(raw)))
+    }
+    None => ()
+  }
+  @schema.obj(fields)
+}
+
+///|
+pub fn GetConfigurationResponse::from_json(
+  json : Json,
+) -> GetConfigurationResponse raise @schema.SchemaError {
+  let entries = @schema.get_array(json, "configurationKey")
+  let configuration_key : Array[ConfigurationKey] = []
+  for entry in entries {
+    configuration_key.push(ConfigurationKey::from_json(entry))
+  }
+  let unknown_key = match @schema.opt_array(json, "unknownKey") {
+    Some(entries) => {
+      let keys : Array[String] = []
+      for entry in entries {
+        match entry {
+          Json::String(value) => keys.push(value)
+          _ => raise @schema.WrongType("unknownKey")
+        }
+      }
+      Some(keys)
+    }
+    None => None
+  }
+  { configuration_key, unknown_key }
+}
+
+///|
+pub(all) struct RemoteTrigger {
+  requested_message : String
+} derive(Debug, Eq)
+
+///|
+pub fn RemoteTrigger::to_json(self : RemoteTrigger) -> Json {
+  @schema.obj([("requestedMessage", @schema.text(self.requested_message))])
+}
+
+///|
+pub fn RemoteTrigger::from_json(json : Json) -> RemoteTrigger raise @schema.SchemaError {
+  { requested_message: @schema.get_string(json, "requestedMessage") }
+}
+///|
+pub(all) struct ChangeConfigurationResponse {
+  status : @schema.ConfigurationStatus
+} derive(Debug, Eq)
+
+///|
+pub fn ChangeConfigurationResponse::to_json(self : ChangeConfigurationResponse) -> Json {
+  @schema.obj([("status", @schema.text(self.status.code()))])
+}
+
+///|
+pub fn ChangeConfigurationResponse::from_json(
+  json : Json,
+) -> ChangeConfigurationResponse raise @schema.SchemaError {
+  let status_text = @schema.get_string(json, "status")
+  let status = match @schema.configuration_status(status_text) {
+    Some(value) => value
+    None => raise @schema.UnknownCode(status_text)
+  }
+  { status, }
+}

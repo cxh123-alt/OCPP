@@ -13,6 +13,9 @@ pub(all) enum Request {
   StatusNotification(StatusNotification)
   RemoteStartTransaction(RemoteStartTransaction)
   RemoteStopTransaction(RemoteStopTransaction)
+  ChangeConfiguration(ChangeConfiguration)
+  GetConfiguration(GetConfiguration)
+  RemoteTrigger(RemoteTrigger)
   Reset(Reset)
 } derive(Debug, Eq)
 
@@ -28,6 +31,9 @@ pub fn Request::action(self : Request) -> String {
     StatusNotification(_) => "StatusNotification"
     RemoteStartTransaction(_) => "RemoteStartTransaction"
     RemoteStopTransaction(_) => "RemoteStopTransaction"
+    ChangeConfiguration(_) => "ChangeConfiguration"
+    GetConfiguration(_) => "GetConfiguration"
+    RemoteTrigger(_) => "RemoteTrigger"
     Reset(_) => "Reset"
   }
 }
@@ -44,6 +50,9 @@ pub fn Request::to_json(self : Request) -> Json {
     StatusNotification(value) => value.to_json()
     RemoteStartTransaction(value) => value.to_json()
     RemoteStopTransaction(value) => value.to_json()
+    ChangeConfiguration(value) => value.to_json()
+    GetConfiguration(value) => value.to_json()
+    RemoteTrigger(value) => value.to_json()
     Reset(value) => value.to_json()
   }
 }
@@ -68,6 +77,10 @@ pub fn request_of(
       RemoteStartTransaction(RemoteStartTransaction::from_json(payload))
     "RemoteStopTransaction" =>
       RemoteStopTransaction(RemoteStopTransaction::from_json(payload))
+    "ChangeConfiguration" =>
+      ChangeConfiguration(ChangeConfiguration::from_json(payload))
+    "GetConfiguration" => GetConfiguration(GetConfiguration::from_json(payload))
+    "RemoteTrigger" => RemoteTrigger(RemoteTrigger::from_json(payload))
     "Reset" => Reset(Reset::from_json(payload))
     _ => raise @schema.UnknownCode(action)
   }

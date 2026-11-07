@@ -270,3 +270,32 @@ pub fn ClockTime::advance(self : ClockTime, seconds : Int) -> ClockTime {
     second: total % 60,
   }
 }
+
+///|
+pub(all) enum ConfigurationStatus {
+  Accepted
+  Rejected
+  RebootRequired
+  NotSupported
+} derive(Debug, Eq)
+
+///|
+pub fn ConfigurationStatus::code(self : ConfigurationStatus) -> String {
+  match self {
+    Accepted => "Accepted"
+    Rejected => "Rejected"
+    RebootRequired => "RebootRequired"
+    NotSupported => "NotSupported"
+  }
+}
+
+///|
+pub fn configuration_status(text : String) -> ConfigurationStatus? {
+  match text {
+    "Accepted" => Some(Accepted)
+    "Rejected" => Some(Rejected)
+    "RebootRequired" => Some(RebootRequired)
+    "NotSupported" => Some(NotSupported)
+    _ => None
+  }
+}

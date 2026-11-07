@@ -90,3 +90,23 @@ test "an unknown command is refused" {
     _ => fail("expected an error")
   }
 }
+
+test "get configuration returns typed keys" {
+  let session = Session::new(ChargePoint::new("CP-7", Version::V16), clock())
+  let command = @wire.encode(
+    @wire.Frame::Call({
+      id: "cs-3",
+      action: "GetConfiguration",
+      payload: @schema.obj([("key", Json::array([@schema.text("WebSocketPingInterval")]))]),
+    }),
+  )
+  let replies = session.handle(command)
+  assert_eq(replies.length(), 1)
+  match @wire.parse(replies[0]) {
+    @wire.Frame::Result(result) => {
+      let keys = @schema.get_array(result.payload, "configurationKey")
+      assert_eq(keys.length(), 2)
+    }
+    _ => fail("expected a result")
+  }
+}
