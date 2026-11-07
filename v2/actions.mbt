@@ -12,6 +12,8 @@ pub(all) enum Request {
   StatusNotification(StatusNotification)
   RequestStartTransaction(RequestStartTransaction)
   RequestStopTransaction(RequestStopTransaction)
+  GetVariables(GetVariables)
+  SetVariables(SetVariables)
   Reset(Reset)
 } derive(Debug, Eq)
 
@@ -26,6 +28,8 @@ pub fn Request::action(self : Request) -> String {
     StatusNotification(_) => "StatusNotification"
     RequestStartTransaction(_) => "RequestStartTransaction"
     RequestStopTransaction(_) => "RequestStopTransaction"
+    GetVariables(_) => "GetVariables"
+    SetVariables(_) => "SetVariables"
     Reset(_) => "Reset"
   }
 }
@@ -41,6 +45,8 @@ pub fn Request::to_json(self : Request) -> Json {
     StatusNotification(value) => value.to_json()
     RequestStartTransaction(value) => value.to_json()
     RequestStopTransaction(value) => value.to_json()
+    GetVariables(value) => value.to_json()
+    SetVariables(value) => value.to_json()
     Reset(value) => value.to_json()
   }
 }
@@ -63,6 +69,8 @@ pub fn request_of(
       RequestStartTransaction(RequestStartTransaction::from_json(payload))
     "RequestStopTransaction" =>
       RequestStopTransaction(RequestStopTransaction::from_json(payload))
+    "GetVariables" => GetVariables(GetVariables::from_json(payload))
+    "SetVariables" => SetVariables(SetVariables::from_json(payload))
     "Reset" => Reset(Reset::from_json(payload))
     _ => raise @schema.UnknownCode(action)
   }

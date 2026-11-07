@@ -650,3 +650,280 @@ pub fn RequestStatusResponse::from_json(
   }
   { status, }
 }
+
+///|
+pub(all) struct Component {
+  name : String
+  instance : String?
+} derive(Debug, Eq)
+
+///|
+pub fn Component::to_json(self : Component) -> Json {
+  let fields : Array[(String, Json)] = [("name", @schema.text(self.name))]
+  match self.instance {
+    Some(value) => fields.push(("instance", @schema.text(value)))
+    None => ()
+  }
+  @schema.obj(fields)
+}
+
+///|
+pub fn Component::from_json(json : Json) -> Component raise @schema.SchemaError {
+  { name: @schema.get_string(json, "name"), instance: @schema.opt_string(json, "instance") }
+}
+
+///|
+pub(all) struct Variable {
+  name : String
+  instance : String?
+} derive(Debug, Eq)
+
+///|
+pub fn Variable::to_json(self : Variable) -> Json {
+  let fields : Array[(String, Json)] = [("name", @schema.text(self.name))]
+  match self.instance {
+    Some(value) => fields.push(("instance", @schema.text(value)))
+    None => ()
+  }
+  @schema.obj(fields)
+}
+
+///|
+pub fn Variable::from_json(json : Json) -> Variable raise @schema.SchemaError {
+  { name: @schema.get_string(json, "name"), instance: @schema.opt_string(json, "instance") }
+}
+
+///|
+pub(all) struct GetVariableData {
+  component : Component
+  variable : Variable
+  attribute_type : String?
+} derive(Debug, Eq)
+
+///|
+pub fn GetVariableData::to_json(self : GetVariableData) -> Json {
+  let fields : Array[(String, Json)] = [
+    ("component", self.component.to_json()),
+    ("variable", self.variable.to_json()),
+  ]
+  match self.attribute_type {
+    Some(value) => fields.push(("attributeType", @schema.text(value)))
+    None => ()
+  }
+  @schema.obj(fields)
+}
+
+///|
+pub fn GetVariableData::from_json(json : Json) -> GetVariableData raise @schema.SchemaError {
+  {
+    component: Component::from_json(@schema.get_object(json, "component")),
+    variable: Variable::from_json(@schema.get_object(json, "variable")),
+    attribute_type: @schema.opt_string(json, "attributeType"),
+  }
+}
+
+///|
+pub(all) struct GetVariables {
+  items : Array[GetVariableData]
+} derive(Debug, Eq)
+
+///|
+pub fn GetVariables::to_json(self : GetVariables) -> Json {
+  let items : Array[Json] = []
+  for item in self.items {
+    items.push(item.to_json())
+  }
+  @schema.obj([("getVariableData", Json::array(items))])
+}
+
+///|
+pub fn GetVariables::from_json(json : Json) -> GetVariables raise @schema.SchemaError {
+  let raw = @schema.get_array(json, "getVariableData")
+  let items : Array[GetVariableData] = []
+  for item in raw {
+    items.push(GetVariableData::from_json(item))
+  }
+  { items, }
+}
+
+///|
+pub(all) struct GetVariableResult {
+  attribute_type : String?
+  attribute_status : String
+  component : Component
+  variable : Variable
+  attribute_value : String?
+} derive(Debug, Eq)
+
+///|
+pub fn GetVariableResult::to_json(self : GetVariableResult) -> Json {
+  let fields : Array[(String, Json)] = [
+    ("attributeStatus", @schema.text(self.attribute_status)),
+    ("component", self.component.to_json()),
+    ("variable", self.variable.to_json()),
+  ]
+  match self.attribute_type {
+    Some(value) => fields.push(("attributeType", @schema.text(value)))
+    None => ()
+  }
+  match self.attribute_value {
+    Some(value) => fields.push(("attributeValue", @schema.text(value)))
+    None => ()
+  }
+  @schema.obj(fields)
+}
+
+///|
+pub fn GetVariableResult::from_json(
+  json : Json,
+) -> GetVariableResult raise @schema.SchemaError {
+  {
+    attribute_type: @schema.opt_string(json, "attributeType"),
+    attribute_status: @schema.get_string(json, "attributeStatus"),
+    component: Component::from_json(@schema.get_object(json, "component")),
+    variable: Variable::from_json(@schema.get_object(json, "variable")),
+    attribute_value: @schema.opt_string(json, "attributeValue"),
+  }
+}
+
+///|
+pub(all) struct GetVariablesResponse {
+  results : Array[GetVariableResult]
+} derive(Debug, Eq)
+
+///|
+pub fn GetVariablesResponse::to_json(self : GetVariablesResponse) -> Json {
+  let items : Array[Json] = []
+  for item in self.results {
+    items.push(item.to_json())
+  }
+  @schema.obj([("getVariableResult", Json::array(items))])
+}
+
+///|
+pub fn GetVariablesResponse::from_json(
+  json : Json,
+) -> GetVariablesResponse raise @schema.SchemaError {
+  let raw = @schema.get_array(json, "getVariableResult")
+  let results : Array[GetVariableResult] = []
+  for item in raw {
+    results.push(GetVariableResult::from_json(item))
+  }
+  { results, }
+}
+
+///|
+pub(all) struct SetVariableData {
+  attribute_type : String?
+  attribute_value : String
+  component : Component
+  variable : Variable
+} derive(Debug, Eq)
+
+///|
+pub fn SetVariableData::to_json(self : SetVariableData) -> Json {
+  let fields : Array[(String, Json)] = [
+    ("attributeValue", @schema.text(self.attribute_value)),
+    ("component", self.component.to_json()),
+    ("variable", self.variable.to_json()),
+  ]
+  match self.attribute_type {
+    Some(value) => fields.push(("attributeType", @schema.text(value)))
+    None => ()
+  }
+  @schema.obj(fields)
+}
+
+///|
+pub fn SetVariableData::from_json(json : Json) -> SetVariableData raise @schema.SchemaError {
+  {
+    attribute_type: @schema.opt_string(json, "attributeType"),
+    attribute_value: @schema.get_string(json, "attributeValue"),
+    component: Component::from_json(@schema.get_object(json, "component")),
+    variable: Variable::from_json(@schema.get_object(json, "variable")),
+  }
+}
+
+///|
+pub(all) struct SetVariables {
+  items : Array[SetVariableData]
+} derive(Debug, Eq)
+
+///|
+pub fn SetVariables::to_json(self : SetVariables) -> Json {
+  let items : Array[Json] = []
+  for item in self.items {
+    items.push(item.to_json())
+  }
+  @schema.obj([("setVariableData", Json::array(items))])
+}
+
+///|
+pub fn SetVariables::from_json(json : Json) -> SetVariables raise @schema.SchemaError {
+  let raw = @schema.get_array(json, "setVariableData")
+  let items : Array[SetVariableData] = []
+  for item in raw {
+    items.push(SetVariableData::from_json(item))
+  }
+  { items, }
+}
+
+///|
+pub(all) struct SetVariableResult {
+  attribute_type : String?
+  attribute_status : String
+  component : Component
+  variable : Variable
+} derive(Debug, Eq)
+
+///|
+pub fn SetVariableResult::to_json(self : SetVariableResult) -> Json {
+  let fields : Array[(String, Json)] = [
+    ("attributeStatus", @schema.text(self.attribute_status)),
+    ("component", self.component.to_json()),
+    ("variable", self.variable.to_json()),
+  ]
+  match self.attribute_type {
+    Some(value) => fields.push(("attributeType", @schema.text(value)))
+    None => ()
+  }
+  @schema.obj(fields)
+}
+
+///|
+pub fn SetVariableResult::from_json(
+  json : Json,
+) -> SetVariableResult raise @schema.SchemaError {
+  {
+    attribute_type: @schema.opt_string(json, "attributeType"),
+    attribute_status: @schema.get_string(json, "attributeStatus"),
+    component: Component::from_json(@schema.get_object(json, "component")),
+    variable: Variable::from_json(@schema.get_object(json, "variable")),
+  }
+}
+
+///|
+pub(all) struct SetVariablesResponse {
+  results : Array[SetVariableResult]
+} derive(Debug, Eq)
+
+///|
+pub fn SetVariablesResponse::to_json(self : SetVariablesResponse) -> Json {
+  let items : Array[Json] = []
+  for item in self.results {
+    items.push(item.to_json())
+  }
+  @schema.obj([("setVariableResult", Json::array(items))])
+}
+
+///|
+pub fn SetVariablesResponse::from_json(
+  json : Json,
+) -> SetVariablesResponse raise @schema.SchemaError {
+  let raw = @schema.get_array(json, "setVariableResult")
+  let results : Array[SetVariableResult] = []
+  for item in raw {
+    results.push(SetVariableResult::from_json(item))
+  }
+  { results, }
+}

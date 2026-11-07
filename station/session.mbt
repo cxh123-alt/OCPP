@@ -352,6 +352,39 @@ fn Session::reply_2(self : Session, call : @wire.Call) -> String? {
       }
       Some(result_frame(call.id, payload.to_json()))
     }
+    "GetVariables" => {
+      let request = @v2.GetVariables::from_json(call.payload) catch {
+        _ => return None
+      }
+      let results : Array[@v2.GetVariableResult] = []
+      for item in request.items {
+        results.push({
+          attribute_type: item.attribute_type,
+          attribute_status: "Accepted",
+          component: item.component,
+          variable: item.variable,
+          attribute_value: Some("60"),
+        })
+      }
+      let payload : @v2.GetVariablesResponse = { results, }
+      Some(result_frame(call.id, payload.to_json()))
+    }
+    "SetVariables" => {
+      let request = @v2.SetVariables::from_json(call.payload) catch {
+        _ => return None
+      }
+      let results : Array[@v2.SetVariableResult] = []
+      for item in request.items {
+        results.push({
+          attribute_type: item.attribute_type,
+          attribute_status: "Accepted",
+          component: item.component,
+          variable: item.variable,
+        })
+      }
+      let payload : @v2.SetVariablesResponse = { results, }
+      Some(result_frame(call.id, payload.to_json()))
+    }
     _ => Some(error_frame(call.id, @wire.NOT_SUPPORTED, "action not supported"))
   }
 }

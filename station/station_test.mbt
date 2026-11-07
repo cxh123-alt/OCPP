@@ -110,3 +110,29 @@ test "get configuration returns typed keys" {
     _ => fail("expected a result")
   }
 }
+test "get variables is answered per request item" {
+  let session = Session::new(ChargePoint::new("CP-8", Version::V2), clock())
+  let command = @wire.encode(
+    @wire.Frame::Call({
+      id: "cs-4",
+      action: "GetVariables",
+      payload: @schema.obj([
+        ("getVariableData", Json::array([
+          @schema.obj([
+            ("component", @schema.obj([("name", @schema.text("OCPPCommCtrlr"))])),
+            ("variable", @schema.obj([("name", @schema.text("HeartbeatInterval"))])),
+          ]),
+        ])),
+      ]),
+    }),
+  )
+  let replies = session.handle(command)
+  assert_eq(replies.length(), 1)
+  match @wire.parse(replies[0]) {
+    @wire.Frame::Result(result) => {
+      let items = @schema.get_array(result.payload, "getVariableResult")
+      assert_eq(items.length(), 1)
+    }
+    _ => fail("expected a result")
+  }
+}
