@@ -2,6 +2,7 @@
 // posts, the receiver takes. These tests pin FIFO order because OCPP replies
 // are matched by message id, not by arrival assumptions.
 
+///|
 test "mailbox is fifo" {
   let box = Mailbox::new()
   box.post("one")
@@ -12,6 +13,7 @@ test "mailbox is fifo" {
   assert_eq(box.delivered_count(), 2)
 }
 
+///|
 test "relay moves one frame at a time" {
   let outbox = Mailbox::new()
   let inbox = Mailbox::new()

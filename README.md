@@ -22,6 +22,8 @@ OCPP 1.6J 和 2.0.1 的 MoonBit 实现。给充电桩和后台之间那段 WebSo
 | 计量 | MeterValues（sampledValue） | MeterValues（evse + sampledValue） |
 | 状态 | StatusNotification（connector + errorCode） | StatusNotification（evse + connector） |
 | 下发 | RemoteStart、RemoteStop、Reset | RequestStart、RequestStop、Reset |
+| 配置 | ChangeConfiguration、GetConfiguration | GetVariables、SetVariables |
+| 触发 | RemoteTrigger | — |
 
 不在表里的动作不会崩：桩侧回 `NotSupported`，后台侧回 `NotImplemented`，两边都是合法的 CALLERROR。
 
@@ -39,6 +41,7 @@ moon run cli -- soak 50
 ## 目录
 
 ```
+transport/ 传输接缝：方向信箱与 relay
 wire/     JSON-RPC 数组信封，三种消息类型与错误码
 schema/   两侧共用：状态枚举、时间戳、JSON 读写
 v16/      1.6J 的报文结构 + 动作表
@@ -57,7 +60,7 @@ cli/      命令行
 
 **sans-IO。** 所有方法返回「本该发出去的字符串」，不持有 socket。测试里可以把一次完整充电跑完，CLI 里可以直接打印，将来接 WebSocket 也只是把字符串写出去。
 
-更多见 [`docs/architecture.md`](docs/architecture.md)，动作覆盖见 [`docs/protocol-coverage.md`](docs/protocol-coverage.md)。
+更多见 [docs/architecture.md](docs/architecture.md)、[docs/transport.md](docs/transport.md)，动作覆盖见 [docs/protocol-coverage.md](docs/protocol-coverage.md)，申报书见 [docs/proposal.md](docs/proposal.md)。
 
 ## 边界
 
@@ -70,7 +73,7 @@ cli/      命令行
 
 ```bash
 moon check --deny-warn
-moon test --deny-warn      # 37 个用例
+moon test --deny-warn      # 49 个用例
 moon fmt --check
 ```
 

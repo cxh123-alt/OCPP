@@ -551,14 +551,20 @@ pub(all) struct ChangeConfiguration {
 
 ///|
 pub fn ChangeConfiguration::to_json(self : ChangeConfiguration) -> Json {
-  @schema.obj([("key", @schema.text(self.key)), ("value", @schema.text(self.value))])
+  @schema.obj([
+    ("key", @schema.text(self.key)),
+    ("value", @schema.text(self.value)),
+  ])
 }
 
 ///|
 pub fn ChangeConfiguration::from_json(
   json : Json,
 ) -> ChangeConfiguration raise @schema.SchemaError {
-  { key: @schema.get_string(json, "key"), value: @schema.get_string(json, "value") }
+  {
+    key: @schema.get_string(json, "key"),
+    value: @schema.get_string(json, "value"),
+  }
 }
 
 ///|
@@ -582,7 +588,9 @@ pub fn ConfigurationKey::to_json(self : ConfigurationKey) -> Json {
 }
 
 ///|
-pub fn ConfigurationKey::from_json(json : Json) -> ConfigurationKey raise @schema.SchemaError {
+pub fn ConfigurationKey::from_json(
+  json : Json,
+) -> ConfigurationKey raise @schema.SchemaError {
   {
     key: @schema.get_string(json, "key"),
     is_readonly: @schema.get_bool(json, "readonly"),
@@ -612,7 +620,9 @@ pub fn GetConfiguration::to_json(self : GetConfiguration) -> Json {
 }
 
 ///|
-pub fn GetConfiguration::from_json(json : Json) -> GetConfiguration raise @schema.SchemaError {
+pub fn GetConfiguration::from_json(
+  json : Json,
+) -> GetConfiguration raise @schema.SchemaError {
   let keys = match @schema.opt_array(json, "key") {
     Some(items) => {
       let result : Array[String] = []
@@ -636,12 +646,16 @@ pub(all) struct GetConfigurationResponse {
 } derive(Debug, Eq)
 
 ///|
-pub fn GetConfigurationResponse::to_json(self : GetConfigurationResponse) -> Json {
+pub fn GetConfigurationResponse::to_json(
+  self : GetConfigurationResponse,
+) -> Json {
   let items : Array[Json] = []
   for key in self.configuration_key {
     items.push(key.to_json())
   }
-  let fields : Array[(String, Json)] = [("configurationKey", Json::array(items))]
+  let fields : Array[(String, Json)] = [
+    ("configurationKey", Json::array(items)),
+  ]
   match self.unknown_key {
     Some(keys) => {
       let raw : Array[Json] = []
@@ -677,7 +691,7 @@ pub fn GetConfigurationResponse::from_json(
     }
     None => None
   }
-  { configuration_key, unknown_key }
+  { configuration_key, unknown_key, }
 }
 
 ///|
@@ -691,16 +705,21 @@ pub fn RemoteTrigger::to_json(self : RemoteTrigger) -> Json {
 }
 
 ///|
-pub fn RemoteTrigger::from_json(json : Json) -> RemoteTrigger raise @schema.SchemaError {
-  { requested_message: @schema.get_string(json, "requestedMessage") }
+pub fn RemoteTrigger::from_json(
+  json : Json,
+) -> RemoteTrigger raise @schema.SchemaError {
+  { requested_message: @schema.get_string(json, "requestedMessage"), }
 }
+
 ///|
 pub(all) struct ChangeConfigurationResponse {
   status : @schema.ConfigurationStatus
 } derive(Debug, Eq)
 
 ///|
-pub fn ChangeConfigurationResponse::to_json(self : ChangeConfigurationResponse) -> Json {
+pub fn ChangeConfigurationResponse::to_json(
+  self : ChangeConfigurationResponse,
+) -> Json {
   @schema.obj([("status", @schema.text(self.status.code()))])
 }
 

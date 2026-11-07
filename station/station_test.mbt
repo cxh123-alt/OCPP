@@ -91,13 +91,16 @@ test "an unknown command is refused" {
   }
 }
 
+///|
 test "get configuration returns typed keys" {
   let session = Session::new(ChargePoint::new("CP-7", Version::V16), clock())
   let command = @wire.encode(
     @wire.Frame::Call({
       id: "cs-3",
       action: "GetConfiguration",
-      payload: @schema.obj([("key", Json::array([@schema.text("WebSocketPingInterval")]))]),
+      payload: @schema.obj([
+        ("key", Json::array([@schema.text("WebSocketPingInterval")])),
+      ]),
     }),
   )
   let replies = session.handle(command)
@@ -110,6 +113,8 @@ test "get configuration returns typed keys" {
     _ => fail("expected a result")
   }
 }
+
+///|
 test "get variables is answered per request item" {
   let session = Session::new(ChargePoint::new("CP-8", Version::V2), clock())
   let command = @wire.encode(
@@ -117,12 +122,21 @@ test "get variables is answered per request item" {
       id: "cs-4",
       action: "GetVariables",
       payload: @schema.obj([
-        ("getVariableData", Json::array([
-          @schema.obj([
-            ("component", @schema.obj([("name", @schema.text("OCPPCommCtrlr"))])),
-            ("variable", @schema.obj([("name", @schema.text("HeartbeatInterval"))])),
+        (
+          "getVariableData",
+          Json::array([
+            @schema.obj([
+              (
+                "component",
+                @schema.obj([("name", @schema.text("OCPPCommCtrlr"))]),
+              ),
+              (
+                "variable",
+                @schema.obj([("name", @schema.text("HeartbeatInterval"))]),
+              ),
+            ]),
           ]),
-        ])),
+        ),
       ]),
     }),
   )

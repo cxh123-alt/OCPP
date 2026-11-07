@@ -11,7 +11,7 @@ pub(all) struct Mailbox {
 
 ///|
 pub fn Mailbox::new() -> Mailbox {
-  { pending: [], delivered: 0 }
+  { pending: [], delivered: 0, }
 }
 
 ///|

@@ -96,26 +96,32 @@ test "request enum exposes its action name" {
   assert_true(request.to_json() is Json::Object(_))
 }
 
+///|
 test "change configuration uses key and value" {
-  let request : ChangeConfiguration = { key: "MeterValueSampleInterval", value: "60" }
+  let request : ChangeConfiguration = {
+    key: "MeterValueSampleInterval",
+    value: "60",
+  }
   let json = request.to_json()
   assert_eq(@schema.get_string(json, "key"), "MeterValueSampleInterval")
   assert_eq(ChangeConfiguration::from_json(json), request)
 }
 
+///|
 test "get configuration can ask for specific keys" {
-  let request : GetConfiguration = { keys: Some(["A", "B"]) }
+  let request : GetConfiguration = { keys: Some(["A", "B"]), }
   let back = GetConfiguration::from_json(request.to_json())
   assert_eq(back, request)
-  let empty : GetConfiguration = { keys: None }
+  let empty : GetConfiguration = { keys: None, }
   assert_eq(GetConfiguration::from_json(empty.to_json()), empty)
 }
 
+///|
 test "configuration response keeps readonly and unknown keys" {
   let response : GetConfigurationResponse = {
     configuration_key: [
-      { key: "A", is_readonly: false, value: Some("1") },
-      { key: "B", is_readonly: true, value: None },
+      { key: "A", is_readonly: false, value: Some("1"), },
+      { key: "B", is_readonly: true, value: None, },
     ],
     unknown_key: Some(["C"]),
   }
@@ -123,13 +129,20 @@ test "configuration response keeps readonly and unknown keys" {
   assert_eq(GetConfigurationResponse::from_json(json), response)
 }
 
+///|
 test "remote trigger round trip" {
-  let request : RemoteTrigger = { requested_message: "DiagnosticsStatusNotification" }
+  let request : RemoteTrigger = {
+    requested_message: "DiagnosticsStatusNotification",
+  }
   assert_eq(RemoteTrigger::from_json(request.to_json()), request)
 }
 
+///|
 test "configuration actions are in the table" {
-  let request = request_of("ChangeConfiguration", @schema.obj([("key", @schema.text("K")), ("value", @schema.text("V"))]))
+  let request = request_of(
+    "ChangeConfiguration",
+    @schema.obj([("key", @schema.text("K")), ("value", @schema.text("V"))]),
+  )
   assert_eq(request.action(), "ChangeConfiguration")
   assert_true(!from_charge_point("ChangeConfiguration"))
 }

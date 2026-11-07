@@ -15,12 +15,17 @@
 | RequestStartTransaction | 后台 → 桩 | — | 是 | `station/session.mbt` |
 | RequestStopTransaction | 后台 → 桩 | — | 是 | `station/session.mbt` |
 | Reset | 后台 → 桩 | 是 | 是 | 两者 |
+| ChangeConfiguration | 后台 → 桩 | 是 | — | v16 + station |
+| GetConfiguration | 后台 → 桩 | 是 | — | v16 + station |
+| RemoteTrigger | 后台 → 桩 | 是 | — | v16 + station |
+| GetVariables | 后台 → 桩 | — | 是 | v2 + station |
+| SetVariables | 后台 → 桩 | — | 是 | v2 + station |
 
 ## 未实现
 
-**1.6J**：ReserveNow / CancelReservation、UnlockConnector、ChangeAvailability、ChangeConfiguration、GetConfiguration、RemoteTrigger、SendLocalList、DiagnosticsStatusNotification、FirmwareStatusNotification、DataTransfer，以及 Smart Charging 的全部动作。
+**1.6J**：ReserveNow / CancelReservation、UnlockConnector、ChangeAvailability、SendLocalList、GetDiagnostics、DiagnosticsStatusNotification、FirmwareStatusNotification、DataTransfer，以及 Smart Charging 的全部动作。
 
-**2.0.1**：Security 事件、CertificateSigned、GetVariables / SetVariables、SetChargingProfile、GetCompositeSchedule、UpdateFirmware、PublishFirmware、ReserveNow、UnlockConnector、DataTransfer、DisplayMessage。
+**2.0.1**：Security 事件、CertificateSigned、SetChargingProfile、GetCompositeSchedule、UpdateFirmware、PublishFirmware、ReserveNow、UnlockConnector、DataTransfer、DisplayMessage。
 
 ## 已知简化
 

@@ -305,8 +305,16 @@ fn Session::reply_16(self : Session, call : @wire.Call) -> String? {
     "GetConfiguration" => {
       let payload : @v16.GetConfigurationResponse = {
         configuration_key: [
-          { key: "WebSocketPingInterval", is_readonly: false, value: Some("60") },
-          { key: "MeterValueSampleInterval", is_readonly: false, value: Some("300") },
+          {
+            key: "WebSocketPingInterval",
+            is_readonly: false,
+            value: Some("60"),
+          },
+          {
+            key: "MeterValueSampleInterval",
+            is_readonly: false,
+            value: Some("300"),
+          },
         ],
         unknown_key: None,
       }

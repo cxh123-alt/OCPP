@@ -669,7 +669,10 @@ pub fn Component::to_json(self : Component) -> Json {
 
 ///|
 pub fn Component::from_json(json : Json) -> Component raise @schema.SchemaError {
-  { name: @schema.get_string(json, "name"), instance: @schema.opt_string(json, "instance") }
+  {
+    name: @schema.get_string(json, "name"),
+    instance: @schema.opt_string(json, "instance"),
+  }
 }
 
 ///|
@@ -690,7 +693,10 @@ pub fn Variable::to_json(self : Variable) -> Json {
 
 ///|
 pub fn Variable::from_json(json : Json) -> Variable raise @schema.SchemaError {
-  { name: @schema.get_string(json, "name"), instance: @schema.opt_string(json, "instance") }
+  {
+    name: @schema.get_string(json, "name"),
+    instance: @schema.opt_string(json, "instance"),
+  }
 }
 
 ///|
@@ -714,7 +720,9 @@ pub fn GetVariableData::to_json(self : GetVariableData) -> Json {
 }
 
 ///|
-pub fn GetVariableData::from_json(json : Json) -> GetVariableData raise @schema.SchemaError {
+pub fn GetVariableData::from_json(
+  json : Json,
+) -> GetVariableData raise @schema.SchemaError {
   {
     component: Component::from_json(@schema.get_object(json, "component")),
     variable: Variable::from_json(@schema.get_object(json, "variable")),
@@ -737,7 +745,9 @@ pub fn GetVariables::to_json(self : GetVariables) -> Json {
 }
 
 ///|
-pub fn GetVariables::from_json(json : Json) -> GetVariables raise @schema.SchemaError {
+pub fn GetVariables::from_json(
+  json : Json,
+) -> GetVariables raise @schema.SchemaError {
   let raw = @schema.get_array(json, "getVariableData")
   let items : Array[GetVariableData] = []
   for item in raw {
@@ -835,7 +845,9 @@ pub fn SetVariableData::to_json(self : SetVariableData) -> Json {
 }
 
 ///|
-pub fn SetVariableData::from_json(json : Json) -> SetVariableData raise @schema.SchemaError {
+pub fn SetVariableData::from_json(
+  json : Json,
+) -> SetVariableData raise @schema.SchemaError {
   {
     attribute_type: @schema.opt_string(json, "attributeType"),
     attribute_value: @schema.get_string(json, "attributeValue"),
@@ -859,7 +871,9 @@ pub fn SetVariables::to_json(self : SetVariables) -> Json {
 }
 
 ///|
-pub fn SetVariables::from_json(json : Json) -> SetVariables raise @schema.SchemaError {
+pub fn SetVariables::from_json(
+  json : Json,
+) -> SetVariables raise @schema.SchemaError {
   let raw = @schema.get_array(json, "setVariableData")
   let items : Array[SetVariableData] = []
   for item in raw {

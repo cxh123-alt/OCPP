@@ -94,12 +94,13 @@ test "2.0.1 direction table" {
   assert_true(!from_charge_point("Reset"))
 }
 
+///|
 test "get variables nests component and variable" {
   let request : GetVariables = {
     items: [
       {
-        component: { name: "EVSE", instance: Some("1") },
-        variable: { name: "AvailabilityState", instance: None },
+        component: { name: "EVSE", instance: Some("1"), },
+        variable: { name: "AvailabilityState", instance: None, },
         attribute_type: Some("Actual"),
       },
     ],
@@ -110,14 +111,15 @@ test "get variables nests component and variable" {
   assert_eq(back.items[0].variable.name, "AvailabilityState")
 }
 
+///|
 test "set variables carries values per variable" {
   let request : SetVariables = {
     items: [
       {
         attribute_type: None,
         attribute_value: "60",
-        component: { name: "OCPPCommCtrlr", instance: None },
-        variable: { name: "HeartbeatInterval", instance: None },
+        component: { name: "OCPPCommCtrlr", instance: None, },
+        variable: { name: "HeartbeatInterval", instance: None, },
       },
     ],
   }
@@ -126,8 +128,12 @@ test "set variables carries values per variable" {
   assert_eq(back.items[0].attribute_value, "60")
 }
 
+///|
 test "variable actions are in the table" {
-  let request = request_of("GetVariables", @schema.obj([("getVariableData", Json::array([]))]))
+  let request = request_of(
+    "GetVariables",
+    @schema.obj([("getVariableData", Json::array([]))]),
+  )
   assert_eq(request.action(), "GetVariables")
   assert_true(!from_charge_point("GetVariables"))
 }
