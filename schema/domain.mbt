@@ -203,7 +203,9 @@ pub fn ChargingStation::to_json(self : ChargingStation) -> Json {
 }
 
 ///|
-pub fn ChargingStation::from_json(json : Json) -> ChargingStation raise SchemaError {
+pub fn ChargingStation::from_json(
+  json : Json,
+) -> ChargingStation raise SchemaError {
   {
     model: get_string(json, "model"),
     vendor: get_string(json, "vendor"),
@@ -263,8 +265,8 @@ pub fn ClockTime::advance(self : ClockTime, seconds : Int) -> ClockTime {
     year: self.year,
     month: self.month,
     day: self.day,
-    hour: (total / 3600) % 24,
-    minute: (total / 60) % 60,
+    hour: total / 3600 % 24,
+    minute: total / 60 % 60,
     second: total % 60,
   }
 }

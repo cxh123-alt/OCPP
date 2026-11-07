@@ -3,22 +3,31 @@
 
 ///|
 pub const NOT_IMPLEMENTED : String = "NotImplemented"
+
 ///|
 pub const NOT_SUPPORTED : String = "NotSupported"
+
 ///|
 pub const INTERNAL_ERROR : String = "InternalError"
+
 ///|
 pub const PROTOCOL_ERROR : String = "ProtocolError"
+
 ///|
 pub const SECURITY_ERROR : String = "SecurityError"
+
 ///|
 pub const FORMATION_VIOLATION : String = "FormationViolation"
+
 ///|
 pub const PROPERTY_CONSTRAINT_VIOLATION : String = "PropertyConstraintViolation"
+
 ///|
 pub const OCCURENCE_CONSTRAINT_VIOLATION : String = "OccurenceConstraintViolation"
+
 ///|
 pub const TYPE_CONSTRAINT_VIOLATION : String = "TypeConstraintViolation"
+
 ///|
 pub const GENERIC_ERROR : String = "GenericError"
 

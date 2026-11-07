@@ -57,16 +57,12 @@ fn pump(
 
 ///|
 fn record(log : Array[Exchange], direction : String, text : String) -> Unit {
-  log.push({ direction, action: action_of(text), text })
+  log.push({ direction, action: action_of(text), text, })
 }
 
 ///|
 fn action_of(text : String) -> String {
-  let frame = try {
-    @wire.parse(text)
-  } catch {
-    _ => return "unparseable"
-  }
+  let frame = @wire.parse(text) catch { _ => return "unparseable" }
   match frame {
     @wire.Frame::Call(call) => call.action
     @wire.Frame::Result(_) => "result"

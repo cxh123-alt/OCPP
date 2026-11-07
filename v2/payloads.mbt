@@ -95,7 +95,10 @@ pub(all) struct IdToken {
 
 ///|
 pub fn IdToken::to_json(self : IdToken) -> Json {
-  @schema.obj([("idToken", @schema.text(self.value)), ("type", @schema.text(self.kind.code()))])
+  @schema.obj([
+    ("idToken", @schema.text(self.value)),
+    ("type", @schema.text(self.kind.code())),
+  ])
 }
 
 ///|
@@ -105,7 +108,7 @@ pub fn IdToken::from_json(json : Json) -> IdToken raise @schema.SchemaError {
     Some(value) => value
     None => raise @schema.UnknownCode(kind_text)
   }
-  { value: @schema.get_string(json, "idToken"), kind }
+  { value: @schema.get_string(json, "idToken"), kind, }
 }
 
 ///|
@@ -116,7 +119,9 @@ pub(all) struct IdTokenInfo {
 
 ///|
 pub fn IdTokenInfo::to_json(self : IdTokenInfo) -> Json {
-  let fields : Array[(String, Json)] = [("status", @schema.text(self.status.code()))]
+  let fields : Array[(String, Json)] = [
+    ("status", @schema.text(self.status.code())),
+  ]
   match self.cache_expiry {
     Some(value) => fields.push(("cacheExpiryDateTime", @schema.text(value)))
     None => ()
@@ -125,13 +130,15 @@ pub fn IdTokenInfo::to_json(self : IdTokenInfo) -> Json {
 }
 
 ///|
-pub fn IdTokenInfo::from_json(json : Json) -> IdTokenInfo raise @schema.SchemaError {
+pub fn IdTokenInfo::from_json(
+  json : Json,
+) -> IdTokenInfo raise @schema.SchemaError {
   let status_text = @schema.get_string(json, "status")
   let status = match @schema.authorization_status(status_text) {
     Some(value) => value
     None => raise @schema.UnknownCode(status_text)
   }
-  { status, cache_expiry: @schema.opt_string(json, "cacheExpiryDateTime") }
+  { status, cache_expiry: @schema.opt_string(json, "cacheExpiryDateTime"), }
 }
 
 ///|
@@ -149,7 +156,9 @@ pub fn BootNotification::to_json(self : BootNotification) -> Json {
 }
 
 ///|
-pub fn BootNotification::from_json(json : Json) -> BootNotification raise @schema.SchemaError {
+pub fn BootNotification::from_json(
+  json : Json,
+) -> BootNotification raise @schema.SchemaError {
   let reason_text = @schema.get_string(json, "reason")
   let reason = match boot_reason(reason_text) {
     Some(value) => value
@@ -157,7 +166,9 @@ pub fn BootNotification::from_json(json : Json) -> BootNotification raise @schem
   }
   {
     reason,
-    station: @schema.ChargingStation::from_json(@schema.get_object(json, "chargingStation")),
+    station: @schema.ChargingStation::from_json(
+      @schema.get_object(json, "chargingStation"),
+    ),
   }
 }
 
@@ -169,7 +180,9 @@ pub(all) struct BootNotificationResponse {
 } derive(Debug, Eq)
 
 ///|
-pub fn BootNotificationResponse::to_json(self : BootNotificationResponse) -> Json {
+pub fn BootNotificationResponse::to_json(
+  self : BootNotificationResponse,
+) -> Json {
   @schema.obj([
     ("currentTime", @schema.text(self.current_time)),
     ("interval", @schema.integer(self.interval)),
@@ -204,8 +217,10 @@ pub fn HeartbeatResponse::to_json(self : HeartbeatResponse) -> Json {
 }
 
 ///|
-pub fn HeartbeatResponse::from_json(json : Json) -> HeartbeatResponse raise @schema.SchemaError {
-  { current_time: @schema.get_string(json, "currentTime") }
+pub fn HeartbeatResponse::from_json(
+  json : Json,
+) -> HeartbeatResponse raise @schema.SchemaError {
+  { current_time: @schema.get_string(json, "currentTime"), }
 }
 
 ///|
@@ -219,7 +234,9 @@ pub fn AuthorizeResponse::to_json(self : AuthorizeResponse) -> Json {
 }
 
 ///|
-pub fn AuthorizeResponse::from_json(json : Json) -> AuthorizeResponse raise @schema.SchemaError {
+pub fn AuthorizeResponse::from_json(
+  json : Json,
+) -> AuthorizeResponse raise @schema.SchemaError {
   {
     id_token_info: IdTokenInfo::from_json(
       @schema.get_object(json, "idTokenInfo"),
@@ -254,7 +271,9 @@ pub fn SampledValue::to_json(self : SampledValue) -> Json {
 }
 
 ///|
-pub fn SampledValue::from_json(json : Json) -> SampledValue raise @schema.SchemaError {
+pub fn SampledValue::from_json(
+  json : Json,
+) -> SampledValue raise @schema.SchemaError {
   {
     value: @schema.get_string(json, "value"),
     measurand: @schema.opt_string(json, "measurand"),
@@ -282,13 +301,15 @@ pub fn MeterValue::to_json(self : MeterValue) -> Json {
 }
 
 ///|
-pub fn MeterValue::from_json(json : Json) -> MeterValue raise @schema.SchemaError {
+pub fn MeterValue::from_json(
+  json : Json,
+) -> MeterValue raise @schema.SchemaError {
   let items = @schema.get_array(json, "sampledValue")
   let samples : Array[SampledValue] = []
   for item in items {
     samples.push(SampledValue::from_json(item))
   }
-  { timestamp: @schema.get_string(json, "timestamp"), sampled_value: samples }
+  { timestamp: @schema.get_string(json, "timestamp"), sampled_value: samples, }
 }
 
 ///|
@@ -300,7 +321,9 @@ pub(all) struct TransactionInfo {
 
 ///|
 pub fn TransactionInfo::to_json(self : TransactionInfo) -> Json {
-  let fields : Array[(String, Json)] = [("transactionId", @schema.text(self.transaction_id))]
+  let fields : Array[(String, Json)] = [
+    ("transactionId", @schema.text(self.transaction_id)),
+  ]
   match self.charging_state {
     Some(value) => fields.push(("chargingState", @schema.text(value)))
     None => ()
@@ -313,7 +336,9 @@ pub fn TransactionInfo::to_json(self : TransactionInfo) -> Json {
 }
 
 ///|
-pub fn TransactionInfo::from_json(json : Json) -> TransactionInfo raise @schema.SchemaError {
+pub fn TransactionInfo::from_json(
+  json : Json,
+) -> TransactionInfo raise @schema.SchemaError {
   {
     transaction_id: @schema.get_string(json, "transactionId"),
     charging_state: @schema.opt_string(json, "chargingState"),
@@ -347,7 +372,8 @@ pub fn TransactionEvent::to_json(self : TransactionEvent) -> Json {
     None => ()
   }
   match self.evse_id {
-    Some(value) => fields.push(("evse", @schema.obj([("id", @schema.integer(value))])))
+    Some(value) =>
+      fields.push(("evse", @schema.obj([("id", @schema.integer(value))])))
     None => ()
   }
   match self.meter_value {
@@ -364,7 +390,9 @@ pub fn TransactionEvent::to_json(self : TransactionEvent) -> Json {
 }
 
 ///|
-pub fn TransactionEvent::from_json(json : Json) -> TransactionEvent raise @schema.SchemaError {
+pub fn TransactionEvent::from_json(
+  json : Json,
+) -> TransactionEvent raise @schema.SchemaError {
   let kind_text = @schema.get_string(json, "eventType")
   let event_type = match @schema.transaction_event_kind(kind_text) {
     Some(value) => value
@@ -393,7 +421,9 @@ pub fn TransactionEvent::from_json(json : Json) -> TransactionEvent raise @schem
     timestamp: @schema.get_string(json, "timestamp"),
     trigger_reason: @schema.get_string(json, "triggerReason"),
     seq_no: @schema.get_int(json, "seqNo"),
-    transaction_info: TransactionInfo::from_json(@schema.get_object(json, "transactionInfo")),
+    transaction_info: TransactionInfo::from_json(
+      @schema.get_object(json, "transactionInfo"),
+    ),
     id_token,
     evse_id,
     meter_value,
@@ -406,7 +436,9 @@ pub(all) struct TransactionEventResponse {
 } derive(Debug, Eq)
 
 ///|
-pub fn TransactionEventResponse::to_json(self : TransactionEventResponse) -> Json {
+pub fn TransactionEventResponse::to_json(
+  self : TransactionEventResponse,
+) -> Json {
   let fields : Array[(String, Json)] = []
   match self.id_token_info {
     Some(value) => fields.push(("idTokenInfo", value.to_json()))
@@ -423,7 +455,7 @@ pub fn TransactionEventResponse::from_json(
     Some(value) => Some(IdTokenInfo::from_json(value))
     None => None
   }
-  { id_token_info: info }
+  { id_token_info: info, }
 }
 
 ///|
@@ -480,13 +512,15 @@ pub fn MeterValues::to_json(self : MeterValues) -> Json {
 }
 
 ///|
-pub fn MeterValues::from_json(json : Json) -> MeterValues raise @schema.SchemaError {
+pub fn MeterValues::from_json(
+  json : Json,
+) -> MeterValues raise @schema.SchemaError {
   let items = @schema.get_array(json, "meterValue")
   let values : Array[MeterValue] = []
   for item in items {
     values.push(MeterValue::from_json(item))
   }
-  { evse_id: @schema.get_int(json, "evseId"), meter_value: values }
+  { evse_id: @schema.get_int(json, "evseId"), meter_value: values, }
 }
 
 ///|
@@ -528,7 +562,9 @@ pub(all) struct RequestStartResponse {
 
 ///|
 pub fn RequestStartResponse::to_json(self : RequestStartResponse) -> Json {
-  let fields : Array[(String, Json)] = [("status", @schema.text(self.status.code()))]
+  let fields : Array[(String, Json)] = [
+    ("status", @schema.text(self.status.code())),
+  ]
   match self.transaction_id {
     Some(value) => fields.push(("transactionId", @schema.text(value)))
     None => ()
@@ -545,7 +581,7 @@ pub fn RequestStartResponse::from_json(
     Some(value) => value
     None => raise @schema.UnknownCode(status_text)
   }
-  { status, transaction_id: @schema.opt_string(json, "transactionId") }
+  { status, transaction_id: @schema.opt_string(json, "transactionId"), }
 }
 
 ///|
@@ -562,7 +598,7 @@ pub fn RequestStopTransaction::to_json(self : RequestStopTransaction) -> Json {
 pub fn RequestStopTransaction::from_json(
   json : Json,
 ) -> RequestStopTransaction raise @schema.SchemaError {
-  { transaction_id: @schema.get_string(json, "transactionId") }
+  { transaction_id: @schema.get_string(json, "transactionId"), }
 }
 
 ///|
@@ -573,7 +609,9 @@ pub(all) struct Reset {
 
 ///|
 pub fn Reset::to_json(self : Reset) -> Json {
-  let fields : Array[(String, Json)] = [("type", @schema.text(self.kind.code()))]
+  let fields : Array[(String, Json)] = [
+    ("type", @schema.text(self.kind.code())),
+  ]
   match self.evse_id {
     Some(value) => fields.push(("evseId", @schema.integer(value)))
     None => ()
@@ -588,7 +626,7 @@ pub fn Reset::from_json(json : Json) -> Reset raise @schema.SchemaError {
     Some(value) => value
     None => raise @schema.UnknownCode(kind_text)
   }
-  { kind, evse_id: @schema.opt_int(json, "evseId") }
+  { kind, evse_id: @schema.opt_int(json, "evseId"), }
 }
 
 ///|

@@ -45,11 +45,7 @@ pub(all) enum Frame {
 
 ///|
 pub fn parse(text : String) -> Frame raise WireError {
-  let root = try {
-    @json.parse(text)
-  } catch {
-    _ => raise InvalidJson
-  }
+  let root = @json.parse(text) catch { _ => raise InvalidJson }
   let items = match root {
     Json::Array(items) => items
     _ => raise NotAnArray
@@ -106,11 +102,7 @@ pub fn encode(frame : Frame) -> String {
         call.payload,
       ]).stringify()
     Result(result) =>
-      Json::array([
-        Json::number(3.0),
-        Json::string(result.id),
-        result.payload,
-      ]).stringify()
+      Json::array([Json::number(3.0), Json::string(result.id), result.payload]).stringify()
     Failure(failure) =>
       Json::array([
         Json::number(4.0),

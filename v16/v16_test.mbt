@@ -1,6 +1,7 @@
 // 1.6J payload tests pin the JSON field names, because a rename is invisible
 // at the type level but breaks every peer on the wire.
 
+///|
 test "boot notification uses the spec field names" {
   let request : BootNotification = {
     charge_point_model: "AC-7",
@@ -18,6 +19,7 @@ test "boot notification uses the spec field names" {
   assert_eq(BootNotification::from_json(json), request)
 }
 
+///|
 test "start transaction round trip" {
   let request : StartTransaction = {
     connector_id: 1,
@@ -29,6 +31,7 @@ test "start transaction round trip" {
   assert_eq(StartTransaction::from_json(request.to_json()), request)
 }
 
+///|
 test "meter values keep sample order" {
   let request : MeterValues = {
     connector_id: 1,
@@ -37,7 +40,13 @@ test "meter values keep sample order" {
       {
         timestamp: "2026-11-07T05:00:00Z",
         sampled_value: [
-          { value: "12.5", measurand: Some("Energy.Active.Import.Register"), context: None, format: None, unit: Some("kWh") },
+          {
+            value: "12.5",
+            measurand: Some("Energy.Active.Import.Register"),
+            context: None,
+            format: None,
+            unit: Some("kWh"),
+          },
         ],
       },
     ],
@@ -47,6 +56,7 @@ test "meter values keep sample order" {
   assert_eq(back.meter_value[0].sampled_value[0].value, "12.5")
 }
 
+///|
 test "status notification maps the enum to text" {
   let request : StatusNotification = {
     connector_id: 2,
@@ -59,6 +69,7 @@ test "status notification maps the enum to text" {
   assert_eq(StatusNotification::from_json(json), request)
 }
 
+///|
 test "unknown action is reported" {
   let caught = try {
     ignore(request_of("ChargeNow", @schema.obj([])))
@@ -70,6 +81,7 @@ test "unknown action is reported" {
   assert_true(caught)
 }
 
+///|
 test "direction table separates the two sides" {
   assert_true(from_charge_point("BootNotification"))
   assert_true(from_charge_point("MeterValues"))
@@ -77,6 +89,7 @@ test "direction table separates the two sides" {
   assert_true(!from_charge_point("Reset"))
 }
 
+///|
 test "request enum exposes its action name" {
   let request = Request::Heartbeat
   assert_eq(request.action(), "Heartbeat")

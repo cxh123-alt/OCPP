@@ -51,7 +51,10 @@ pub fn Request::to_json(self : Request) -> Json {
 ///|
 /// Decode a payload using the action name. Unknown names are reported as
 /// `UnknownCode` so callers have one error type for every bad message.
-pub fn request_of(action : String, payload : Json) -> Request raise @schema.SchemaError {
+pub fn request_of(
+  action : String,
+  payload : Json,
+) -> Request raise @schema.SchemaError {
   match action {
     "BootNotification" => BootNotification(BootNotification::from_json(payload))
     "Heartbeat" => Heartbeat
@@ -59,10 +62,12 @@ pub fn request_of(action : String, payload : Json) -> Request raise @schema.Sche
     "StartTransaction" => StartTransaction(StartTransaction::from_json(payload))
     "StopTransaction" => StopTransaction(StopTransaction::from_json(payload))
     "MeterValues" => MeterValues(MeterValues::from_json(payload))
-    "StatusNotification" => StatusNotification(StatusNotification::from_json(payload))
+    "StatusNotification" =>
+      StatusNotification(StatusNotification::from_json(payload))
     "RemoteStartTransaction" =>
       RemoteStartTransaction(RemoteStartTransaction::from_json(payload))
-    "RemoteStopTransaction" => RemoteStopTransaction(RemoteStopTransaction::from_json(payload))
+    "RemoteStopTransaction" =>
+      RemoteStopTransaction(RemoteStopTransaction::from_json(payload))
     "Reset" => Reset(Reset::from_json(payload))
     _ => raise @schema.UnknownCode(action)
   }

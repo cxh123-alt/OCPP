@@ -1,6 +1,7 @@
 // The scripted run is the closest thing to an integration test: two real
 // state machines, real frames, no mocks.
 
+///|
 test "1.6 session walks boot to status" {
   let log = run(@station.Version::V16, 3)
   assert_true(log.length() >= 12)
@@ -15,6 +16,7 @@ test "1.6 session walks boot to status" {
   assert_eq(stops, 1)
 }
 
+///|
 test "2.0.1 session uses transaction events" {
   let log = run(@station.Version::V2, 2)
   let mut started = 0
@@ -33,6 +35,7 @@ test "2.0.1 session uses transaction events" {
   assert_eq(ended, 1)
 }
 
+///|
 test "every central reply follows a charge point call" {
   let log = run(@station.Version::V16, 1)
   let mut index = 0

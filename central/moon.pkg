@@ -1,4 +1,4 @@
 import {
-  "cxh123-alt/ocpp/schema" @schema,
-  "cxh123-alt/ocpp/wire" @wire,
+  "cxh123-alt/ocpp/schema",
+  "cxh123-alt/ocpp/wire",
 }

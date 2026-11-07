@@ -25,17 +25,12 @@ fn call_frame2(session : Session, payload : @v2.Request) -> String {
 
 ///|
 fn result_frame(id : String, payload : Json) -> String {
-  @wire.encode(@wire.Frame::Result({ id, payload }))
+  @wire.encode(@wire.Frame::Result({ id, payload, }))
 }
 
 ///|
 fn error_frame(id : String, code : String, description : String) -> String {
   @wire.encode(
-    @wire.Frame::Failure({
-      id,
-      code,
-      description,
-      details: @schema.empty(),
-    }),
+    @wire.Frame::Failure({ id, code, description, details: @schema.empty(), }),
   )
 }

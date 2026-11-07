@@ -10,7 +10,7 @@ pub(all) struct Session {
 
 ///|
 pub fn Session::new(cp : ChargePoint, clock : @schema.ClockTime) -> Session {
-  { cp, clock }
+  { cp, clock, }
 }
 
 ///|
@@ -60,11 +60,11 @@ pub fn Session::heartbeat_frame(self : Session) -> String {
 ///|
 pub fn Session::authorize_frame(self : Session, tag : String) -> String {
   match self.cp.version {
-    V16 => call_frame16(self, @v16.Request::Authorize({ id_tag: tag }))
+    V16 => call_frame16(self, @v16.Request::Authorize({ id_tag: tag, }))
     V2 =>
       call_frame2(
         self,
-        @v2.Request::Authorize({ value: tag, kind: @v2.IdTokenKind::Local }),
+        @v2.Request::Authorize({ value: tag, kind: @v2.IdTokenKind::Local, }),
       )
   }
 }
@@ -96,7 +96,11 @@ pub fn Session::status_frame(self : Session) -> String {
 }
 
 ///|
-pub fn Session::start_frame(self : Session, tag : String, transaction_id : Int) -> String {
+pub fn Session::start_frame(
+  self : Session,
+  tag : String,
+  transaction_id : Int,
+) -> String {
   match self.cp.version {
     V16 => {
       self.cp.begin_transaction(transaction_id)
@@ -121,7 +125,7 @@ pub fn Session::start_frame(self : Session, tag : String, transaction_id : Int) 
           charging_state: Some("Charging"),
           stopped_reason: None,
         },
-        id_token: Some({ value: tag, kind: @v2.IdTokenKind::Local }),
+        id_token: Some({ value: tag, kind: @v2.IdTokenKind::Local, }),
         evse_id: Some(1),
         meter_value: None,
       })
@@ -184,7 +188,11 @@ pub fn Session::meter_frame(self : Session, wh : Int, seconds : Int) -> String {
 }
 
 ///|
-pub fn Session::stop_frame(self : Session, reason : String, seconds : Int) -> String {
+pub fn Session::stop_frame(
+  self : Session,
+  reason : String,
+  seconds : Int,
+) -> String {
   self.cp.end_transaction()
   self.clock = self.clock.advance(seconds)
   match self.cp.version {
@@ -230,11 +238,7 @@ pub fn Session::stop_frame(self : Session, reason : String, seconds : Int) -> St
 /// React to a central-system call. Returns the frames to send back.
 pub fn Session::handle(self : Session, text : String) -> Array[String] {
   let replies : Array[String] = []
-  let frame = try {
-    @wire.parse(text)
-  } catch {
-    _ => return replies
-  }
+  let frame = @wire.parse(text) catch { _ => return replies }
   match frame {
     @wire.Frame::Call(call) => {
       let reply = self.reply_to(call)
@@ -323,4 +327,3 @@ fn Session::reply_2(self : Session, call : @wire.Call) -> String? {
     _ => Some(error_frame(call.id, @wire.NOT_SUPPORTED, "action not supported"))
   }
 }
-

@@ -21,7 +21,7 @@ pub(all) struct Central {
 
 ///|
 pub fn Central::new(clock : @schema.ClockTime) -> Central {
-  { stations: Map([]), next_transaction: 0, clock }
+  { stations: Map([]), next_transaction: 0, clock, }
 }
 
 ///|
@@ -56,11 +56,7 @@ fn Central::record(self : Central, id : String) -> StationRecord {
 ///|
 pub fn Central::handle(self : Central, text : String) -> Array[String] {
   let replies : Array[String] = []
-  let frame = try {
-    @wire.parse(text)
-  } catch {
-    _ => return replies
-  }
+  let frame = @wire.parse(text) catch { _ => return replies }
   match frame {
     @wire.Frame::Call(call) => {
       let answer = self.answer(call)
@@ -107,9 +103,13 @@ fn Central::answer(self : Central, call : @wire.Call) -> String? {
       let accepted = tag != "BAD"
       let status = if accepted { "Accepted" } else { "Invalid" }
       let body = if is_v2 {
-        @schema.obj([("idTokenInfo", @schema.obj([("status", @schema.text(status))]))])
+        @schema.obj([
+          ("idTokenInfo", @schema.obj([("status", @schema.text(status))])),
+        ])
       } else {
-        @schema.obj([("idTagInfo", @schema.obj([("status", @schema.text(status))]))])
+        @schema.obj([
+          ("idTagInfo", @schema.obj([("status", @schema.text(status))])),
+        ])
       }
       Some(result_frame(call.id, body))
     }
@@ -166,32 +166,19 @@ fn Central::answer(self : Central, call : @wire.Call) -> String? {
 fn station_id(payload : Json, is_v2 : Bool) -> String {
   if is_v2 {
     let station = inner(payload, "chargingStation")
-    let serial = try {
-      @schema.opt_string(station, "serialNumber")
-    } catch {
-      _ => None
-    }
+    let serial = @schema.opt_string(station, "serialNumber") catch { _ => None }
     match serial {
       Some(value) => value
-      None =>
-        try {
-          @schema.get_string(station, "model")
-        } catch {
-          _ => "unknown"
-        }
+      None => @schema.get_string(station, "model") catch { _ => "unknown" }
     }
   } else {
-    let serial = try {
-      @schema.opt_string(payload, "chargePointSerialNumber")
-    } catch {
+    let serial = @schema.opt_string(payload, "chargePointSerialNumber") catch {
       _ => None
     }
     match serial {
       Some(value) => value
       None =>
-        try {
-          @schema.get_string(payload, "chargePointModel")
-        } catch {
+        @schema.get_string(payload, "chargePointModel") catch {
           _ => "unknown"
         }
     }
@@ -220,12 +207,12 @@ fn inner(json : Json, key : String) -> Json {
 
 ///|
 fn result_frame(id : String, payload : Json) -> String {
-  @wire.encode(@wire.Frame::Result({ id, payload }))
+  @wire.encode(@wire.Frame::Result({ id, payload, }))
 }
 
 ///|
 fn error_frame(id : String, code : String, description : String) -> String {
   @wire.encode(
-    @wire.Frame::Failure({ id, code, description, details: @schema.empty() }),
+    @wire.Frame::Failure({ id, code, description, details: @schema.empty(), }),
   )
 }

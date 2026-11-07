@@ -3,9 +3,10 @@
 
 ///|
 fn clock() -> @schema.ClockTime {
-  { year: 2026, month: 11, day: 7, hour: 5, minute: 0, second: 0 }
+  { year: 2026, month: 11, day: 7, hour: 5, minute: 0, second: 0, }
 }
 
+///|
 test "1.6 boot carries the model and vendor" {
   let session = Session::new(ChargePoint::new("CP-1", Version::V16), clock())
   let text = session.boot_frame()
@@ -19,6 +20,7 @@ test "1.6 boot carries the model and vendor" {
   }
 }
 
+///|
 test "2.0.1 boot nests the station" {
   let session = Session::new(ChargePoint::new("CP-2", Version::V2), clock())
   let text = session.boot_frame()
@@ -31,6 +33,7 @@ test "2.0.1 boot nests the station" {
   }
 }
 
+///|
 test "starting a transaction flips the connector" {
   let session = Session::new(ChargePoint::new("CP-3", Version::V16), clock())
   let text = session.start_frame("TAG-1", 5)
@@ -42,6 +45,7 @@ test "starting a transaction flips the connector" {
   }
 }
 
+///|
 test "meter values accumulate energy" {
   let session = Session::new(ChargePoint::new("CP-4", Version::V2), clock())
   ignore(session.start_frame("TAG-1", 7))
@@ -50,6 +54,7 @@ test "meter values accumulate energy" {
   assert_eq(session.clock.iso(), "2026-11-07T05:01:00Z")
 }
 
+///|
 test "a remote start is answered with a status" {
   let session = Session::new(ChargePoint::new("CP-5", Version::V16), clock())
   let command = @wire.encode(
@@ -62,14 +67,14 @@ test "a remote start is answered with a status" {
   let replies = session.handle(command)
   assert_eq(replies.length(), 1)
   match @wire.parse(replies[0]) {
-    @wire.Frame::Result(result) => {
+    @wire.Frame::Result(result) =>
       assert_eq(@schema.get_string(result.payload, "status"), "Accepted")
-    }
     _ => fail("expected a result")
   }
   assert_true(session.cp.is_charging())
 }
 
+///|
 test "an unknown command is refused" {
   let session = Session::new(ChargePoint::new("CP-6", Version::V2), clock())
   let command = @wire.encode(

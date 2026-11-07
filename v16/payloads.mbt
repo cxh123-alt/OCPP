@@ -12,7 +12,9 @@ pub(all) struct IdTagInfo {
 
 ///|
 pub fn IdTagInfo::to_json(self : IdTagInfo) -> Json {
-  let fields : Array[(String, Json)] = [("status", @schema.text(self.status.code()))]
+  let fields : Array[(String, Json)] = [
+    ("status", @schema.text(self.status.code())),
+  ]
   match self.expiry_date {
     Some(value) => fields.push(("expiryDate", @schema.text(value)))
     None => ()
@@ -66,11 +68,15 @@ pub fn BootNotification::to_json(self : BootNotification) -> Json {
 }
 
 ///|
-pub fn BootNotification::from_json(json : Json) -> BootNotification raise @schema.SchemaError {
+pub fn BootNotification::from_json(
+  json : Json,
+) -> BootNotification raise @schema.SchemaError {
   {
     charge_point_model: @schema.get_string(json, "chargePointModel"),
     charge_point_vendor: @schema.get_string(json, "chargePointVendor"),
-    charge_point_serial_number: @schema.opt_string(json, "chargePointSerialNumber"),
+    charge_point_serial_number: @schema.opt_string(
+      json, "chargePointSerialNumber",
+    ),
     firmware_version: @schema.opt_string(json, "firmwareVersion"),
     iccid: @schema.opt_string(json, "iccid"),
     imsi: @schema.opt_string(json, "imsi"),
@@ -87,7 +93,9 @@ pub(all) struct BootNotificationResponse {
 } derive(Debug, Eq)
 
 ///|
-pub fn BootNotificationResponse::to_json(self : BootNotificationResponse) -> Json {
+pub fn BootNotificationResponse::to_json(
+  self : BootNotificationResponse,
+) -> Json {
   @schema.obj([
     ("status", @schema.text(self.status.code())),
     ("currentTime", @schema.text(self.current_time)),
@@ -122,8 +130,10 @@ pub fn HeartbeatResponse::to_json(self : HeartbeatResponse) -> Json {
 }
 
 ///|
-pub fn HeartbeatResponse::from_json(json : Json) -> HeartbeatResponse raise @schema.SchemaError {
-  { current_time: @schema.get_string(json, "currentTime") }
+pub fn HeartbeatResponse::from_json(
+  json : Json,
+) -> HeartbeatResponse raise @schema.SchemaError {
+  { current_time: @schema.get_string(json, "currentTime"), }
 }
 
 ///|
@@ -138,7 +148,7 @@ pub fn Authorize::to_json(self : Authorize) -> Json {
 
 ///|
 pub fn Authorize::from_json(json : Json) -> Authorize raise @schema.SchemaError {
-  { id_tag: @schema.get_string(json, "idTag") }
+  { id_tag: @schema.get_string(json, "idTag"), }
 }
 
 ///|
@@ -152,8 +162,10 @@ pub fn AuthorizeResponse::to_json(self : AuthorizeResponse) -> Json {
 }
 
 ///|
-pub fn AuthorizeResponse::from_json(json : Json) -> AuthorizeResponse raise @schema.SchemaError {
-  { id_tag_info: IdTagInfo::from_json(@schema.get_object(json, "idTagInfo")) }
+pub fn AuthorizeResponse::from_json(
+  json : Json,
+) -> AuthorizeResponse raise @schema.SchemaError {
+  { id_tag_info: IdTagInfo::from_json(@schema.get_object(json, "idTagInfo")), }
 }
 
 ///|
@@ -181,7 +193,9 @@ pub fn StartTransaction::to_json(self : StartTransaction) -> Json {
 }
 
 ///|
-pub fn StartTransaction::from_json(json : Json) -> StartTransaction raise @schema.SchemaError {
+pub fn StartTransaction::from_json(
+  json : Json,
+) -> StartTransaction raise @schema.SchemaError {
   {
     connector_id: @schema.get_int(json, "connectorId"),
     id_tag: @schema.get_string(json, "idTag"),
@@ -198,7 +212,9 @@ pub(all) struct StartTransactionResponse {
 } derive(Debug, Eq)
 
 ///|
-pub fn StartTransactionResponse::to_json(self : StartTransactionResponse) -> Json {
+pub fn StartTransactionResponse::to_json(
+  self : StartTransactionResponse,
+) -> Json {
   @schema.obj([
     ("transactionId", @schema.integer(self.transaction_id)),
     ("idTagInfo", self.id_tag_info.to_json()),
@@ -238,7 +254,9 @@ pub fn StopTransaction::to_json(self : StopTransaction) -> Json {
 }
 
 ///|
-pub fn StopTransaction::from_json(json : Json) -> StopTransaction raise @schema.SchemaError {
+pub fn StopTransaction::from_json(
+  json : Json,
+) -> StopTransaction raise @schema.SchemaError {
   {
     transaction_id: @schema.get_int(json, "transactionId"),
     meter_stop: @schema.get_int(json, "meterStop"),
@@ -272,7 +290,7 @@ pub fn StopTransactionResponse::from_json(
   } else {
     None
   }
-  { id_tag_info: info }
+  { id_tag_info: info, }
 }
 
 ///|
@@ -307,7 +325,9 @@ pub fn SampledValue::to_json(self : SampledValue) -> Json {
 }
 
 ///|
-pub fn SampledValue::from_json(json : Json) -> SampledValue raise @schema.SchemaError {
+pub fn SampledValue::from_json(
+  json : Json,
+) -> SampledValue raise @schema.SchemaError {
   {
     value: @schema.get_string(json, "value"),
     measurand: @schema.opt_string(json, "measurand"),
@@ -336,13 +356,15 @@ pub fn MeterValue::to_json(self : MeterValue) -> Json {
 }
 
 ///|
-pub fn MeterValue::from_json(json : Json) -> MeterValue raise @schema.SchemaError {
+pub fn MeterValue::from_json(
+  json : Json,
+) -> MeterValue raise @schema.SchemaError {
   let items = @schema.get_array(json, "sampledValue")
   let samples : Array[SampledValue] = []
   for item in items {
     samples.push(SampledValue::from_json(item))
   }
-  { timestamp: @schema.get_string(json, "timestamp"), sampled_value: samples }
+  { timestamp: @schema.get_string(json, "timestamp"), sampled_value: samples, }
 }
 
 ///|
@@ -370,7 +392,9 @@ pub fn MeterValues::to_json(self : MeterValues) -> Json {
 }
 
 ///|
-pub fn MeterValues::from_json(json : Json) -> MeterValues raise @schema.SchemaError {
+pub fn MeterValues::from_json(
+  json : Json,
+) -> MeterValues raise @schema.SchemaError {
   let items = @schema.get_array(json, "meterValue")
   let values : Array[MeterValue] = []
   for item in items {
@@ -442,7 +466,10 @@ pub fn RemoteStartTransaction::to_json(self : RemoteStartTransaction) -> Json {
 pub fn RemoteStartTransaction::from_json(
   json : Json,
 ) -> RemoteStartTransaction raise @schema.SchemaError {
-  { id_tag: @schema.get_string(json, "idTag"), connector_id: @schema.opt_int(json, "connectorId") }
+  {
+    id_tag: @schema.get_string(json, "idTag"),
+    connector_id: @schema.opt_int(json, "connectorId"),
+  }
 }
 
 ///|
@@ -459,7 +486,7 @@ pub fn RemoteStopTransaction::to_json(self : RemoteStopTransaction) -> Json {
 pub fn RemoteStopTransaction::from_json(
   json : Json,
 ) -> RemoteStopTransaction raise @schema.SchemaError {
-  { transaction_id: @schema.get_int(json, "transactionId") }
+  { transaction_id: @schema.get_int(json, "transactionId"), }
 }
 
 ///|
@@ -505,7 +532,11 @@ pub fn RequestStatusResponse::from_json(
 }
 
 ///|
-fn push_opt(fields : Array[(String, Json)], key : String, value : String?) -> Unit {
+fn push_opt(
+  fields : Array[(String, Json)],
+  key : String,
+  value : String?,
+) -> Unit {
   match value {
     Some(text) => fields.push((key, @schema.text(text)))
     None => ()

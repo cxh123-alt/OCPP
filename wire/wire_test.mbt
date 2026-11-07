@@ -1,6 +1,7 @@
 // Envelope tests use literal strings so the wire format is checked against
 // the spec text rather than against this implementation.
 
+///|
 test "call keeps its four slots" {
   let frame = parse("[2,\"42\",\"Heartbeat\",{}]")
   match frame {
@@ -13,6 +14,7 @@ test "call keeps its four slots" {
   }
 }
 
+///|
 test "result has three slots" {
   let frame = parse("[3,\"42\",{\"currentTime\":\"2026-11-07T05:00:00Z\"}]")
   match frame {
@@ -21,6 +23,7 @@ test "result has three slots" {
   }
 }
 
+///|
 test "error carries a code and description" {
   let frame = parse("[4,\"42\",\"NotSupported\",\"no such action\",{}]")
   match frame {
@@ -32,6 +35,7 @@ test "error carries a code and description" {
   }
 }
 
+///|
 test "round trip keeps semantics" {
   let original = Frame::Call({
     id: "7",
@@ -43,6 +47,7 @@ test "round trip keeps semantics" {
   assert_eq(parsed, original)
 }
 
+///|
 test "arity is enforced per type" {
   let caught = try {
     ignore(parse("[2,\"1\",\"Heartbeat\"]"))
@@ -54,6 +59,7 @@ test "arity is enforced per type" {
   assert_true(caught)
 }
 
+///|
 test "unknown message type is rejected" {
   let caught = try {
     ignore(parse("[9,\"1\",{}]"))
@@ -65,6 +71,7 @@ test "unknown message type is rejected" {
   assert_true(caught)
 }
 
+///|
 test "payload must be an object" {
   let caught = try {
     ignore(parse("[2,\"1\",\"Heartbeat\",\"nope\"]"))
@@ -76,6 +83,7 @@ test "payload must be an object" {
   assert_true(caught)
 }
 
+///|
 test "error codes are known" {
   assert_true(known_error_code("FormationViolation"))
   assert_true(!known_error_code("BadVibes"))

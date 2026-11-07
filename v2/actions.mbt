@@ -46,17 +46,23 @@ pub fn Request::to_json(self : Request) -> Json {
 }
 
 ///|
-pub fn request_of(action : String, payload : Json) -> Request raise @schema.SchemaError {
+pub fn request_of(
+  action : String,
+  payload : Json,
+) -> Request raise @schema.SchemaError {
   match action {
     "BootNotification" => BootNotification(BootNotification::from_json(payload))
     "Heartbeat" => Heartbeat
-    "Authorize" => Authorize(IdToken::from_json(@schema.get_object(payload, "idToken")))
+    "Authorize" =>
+      Authorize(IdToken::from_json(@schema.get_object(payload, "idToken")))
     "TransactionEvent" => TransactionEvent(TransactionEvent::from_json(payload))
     "MeterValues" => MeterValues(MeterValues::from_json(payload))
-    "StatusNotification" => StatusNotification(StatusNotification::from_json(payload))
+    "StatusNotification" =>
+      StatusNotification(StatusNotification::from_json(payload))
     "RequestStartTransaction" =>
       RequestStartTransaction(RequestStartTransaction::from_json(payload))
-    "RequestStopTransaction" => RequestStopTransaction(RequestStopTransaction::from_json(payload))
+    "RequestStopTransaction" =>
+      RequestStopTransaction(RequestStopTransaction::from_json(payload))
     "Reset" => Reset(Reset::from_json(payload))
     _ => raise @schema.UnknownCode(action)
   }

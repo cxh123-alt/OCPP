@@ -1,3 +1,3 @@
 import {
-  "cxh123-alt/ocpp/schema" @schema,
+  "cxh123-alt/ocpp/schema",
 }
