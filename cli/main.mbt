@@ -148,11 +148,7 @@ fn parse_int(text : String) -> Int? {
 
 ///|
 fn dump(args : Array[String]) -> Unit {
-  let only = if args.length() > 2 {
-    args[2]
-  } else {
-    "1.6"
-  }
+  let only = if args.length() > 2 { args[2] } else { "1.6" }
   let version = if only == "2.0.1" {
     @station.Version::V2
   } else {
