@@ -2,6 +2,8 @@
 
 OCPP 1.6J 和 2.0.1 的 MoonBit 实现。给充电桩和后台之间那段 WebSocket 对话一个不依赖 Node、不依赖 JVM 的库：帧、报文、状态机，都在这里。
 
+符合性目标：OCPP 1.6J Core 档位 16/16；Remote Trigger 与固件管理作为扩展单列；2.0.1 只覆盖会话主链路子集，不作符合性声明。动作矩阵见 [docs/conformance.md](docs/conformance.md)，请求响应关联与交易推进见 [docs/correlation.md](docs/correlation.md)。
+
 ![demo](docs/demo.gif)
 
 ```json
