@@ -23,3 +23,6 @@ jobs:
 
       - name: Test
         run: moon test
+
+      - name: Build for wasm
+        run: moon build --target wasm

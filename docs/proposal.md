@@ -7,6 +7,7 @@
 
 - 项目名称：OCPP 1.6J Core 充电协议栈（MoonBit 实现，含 2.0.1 会话子集）
 - GitHub 仓库链接：https://github.com/cxh123-alt/OCPP
+- GitHub 账号：cxh123-alt（本人账号，项目主要提交者）
 - 项目方向：MoonBit 充电协议库 / 桩与后台通信基础设施
 - 是否为移植项目：否，原创项目
 - 符合性目标：OCPP 1.6J Core 档位 16/16；2.0.1 仅覆盖会话子集，不作符合性声明
