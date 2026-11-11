@@ -1,52 +1,57 @@
 # OCPP 项目申报书（仓库版）
 
-**项目定位：** 纯 MoonBit 的 OCPP 1.6J / 2.0.1 充电桩协议栈
-**GitHub：** https://github.com/cxh123-alt/OCPP　　**开源协议：** MIT
-**说明：** 本文件是提交版申报书的仓库副本，已去掉个人联系方式；提交时以正式申报表为准。
+**许可证：** MIT
+**说明：** 本文件是提交版申报书的仓库副本，已去掉个人联系方式；提交以正式申报表为准。
 
-## 1. 生态定位：一块可复用的充电协议底座
+## 基本信息
 
-充电桩与运营后台之间的每一句话都由 OCPP 规定：一条 WebSocket 上跑 JSON-RPC 2.0，报文用位置数组承载，1.6J 与 2.0.1 两个版本的字段名、嵌套方式和交易模型都不相同。它不是某个厂商的私有协议，而是这个行业事实上的通用语言——桩要接入任何一家平台，平台要接入任何一批桩，都得先实现它。
+- 项目名称：OCPP 1.6J Core 充电协议栈（MoonBit 实现，含 2.0.1 会话子集）
+- GitHub 仓库链接：https://github.com/cxh123-alt/OCPP
+- 项目方向：MoonBit 充电协议库 / 桩与后台通信基础设施
+- 是否为移植项目：否，原创项目
+- 符合性目标：OCPP 1.6J Core 档位 16/16；2.0.1 仅覆盖会话子集，不作符合性声明
 
-在 MoonBit 生态里，这块底座今天是缺的：`moon search ocpp` 全库 0 命中，官方与社区都没有实现。开发者要拿到它，只有两条路：绑定 Node.js 或 JVM 上的现成库（引入运行时依赖，放弃 MoonBit 零依赖、可编译到 wasm 的组合性，也锁死了桩端固件与 Web 端部署）；或者自己从头写一遍。OCPP 补的正是这层纯 MoonBit 底座——交付的是**一个可直接以源码依赖引入的库**，不是某个运营平台；`cli` 下的 demo 只是这套 API 的可执行验收示例。当前版本尚未发布到 mooncakes，接入方式为仓库源码或路径依赖。
+## 项目简介
 
-协议库的价值不在「支持了多少条报文」，而在「每条报文是否字节正确、两版是否分得清、错误是否可被捕获」。OCPP 选择先做深：把充电桩上线到完成一次充电的主链路做扎实，每一层都能用真实报文钉死，再谈扩展。
+OCPP 用 MoonBit 实现充电桩与运营后台之间的协议栈：JSON-RPC 信封、1.6J 与 2.0.1 两版报文、桩侧与后台侧状态机、传输接缝。项目面向桩固件、运营平台、边缘网关与协议测试工具，提供可直接组合的库，而不是绑定某个平台的 demo。当前版本 4423 行（含测试），61 项测试通过，CI 每次推送执行 `moon check` 与 `moon test`。
 
-## 2. 交付范围：以协议库为主体，demo 仅为验收示例
+## 核心功能范围
 
-v0.1 交付的主体是一套单向分层的库，8 个包，覆盖 OCPP 核心档位：
+- 提供 JSON-RPC 的 CALL / CALLRESULT / CALLERROR 三种数组形态，按消息类型校验 arity，内置 10 个标准错误码；
+- 提供注册、鉴权、连接器、交易状态枚举与线上字符串，秒级 UTC 时钟，带字段名的 JSON 读写；
+- 提供 OCPP 1.6J Core 档位全部 16 个动作，每个动作都有请求、响应与往返测试；
+- 提供 1.6J 扩展动作：RemoteTrigger、GetDiagnostics、DiagnosticsStatusNotification、FirmwareStatusNotification，单列为扩展档位，不计入 Core；
+- 提供 2.0.1 会话子集 11 个动作：BootNotification、Heartbeat、Authorize、TransactionEvent、MeterValues、StatusNotification、RequestStartTransaction、RequestStopTransaction、GetVariables、SetVariables、Reset；
+- 提供桩侧状态机：连接器状态、电表累计、交易号维护，可应答的下发命令就地应答，未支持动作返回标准 CALLERROR；
+- 提供后台侧状态机：单端点服务两版协议，按报文形状判别版本，登记会话与交易计数；
+- 提供传输接缝：方向信箱与 `Correlator`，保存未完成调用、按 `callId` 配对、清理超时；
+- 提供 CLI：`demo` 打印两版各一轮完整充电，`decode` 解释单帧，`dump` 导出会话，`soak` 批量压测；
+- 提供 61 个 MoonBit 测试与 GitHub Actions，覆盖字面字段名、双向往返、方向表与关联超时；
+- 提供 `docs/conformance.md` 动作矩阵与 `docs/correlation.md` 关联/交易说明。
 
-- **信封** `wire`：CALL / CALLRESULT / CALLERROR 三种数组形态，按消息类型校验 arity，拒绝非对象载荷，内置 10 个标准错误码；
-- **共用层** `schema`：状态枚举与线上字符串、秒级 UTC 时钟、带字段名的 JSON 读写；
-- **1.6J 报文** `v16`：16 个动作，含启动、鉴权、交易、计量、状态、配置、`RemoteTrigger`、诊断与固件状态；
-- **2.0.1 报文** `v2`：11 个动作，含 `TransactionEvent` 三阶段、`GetVariables` / `SetVariables`；
-- **桩侧** `station`：连接器状态、电表累计、交易号维护，可应答的下发命令就地应答，未支持动作返回标准 CALLERROR；
-- **后台侧** `central`：单端点同时服务两版协议，按报文形状判别版本，登记会话并计数；
-- **传输接缝** `transport`：方向信箱与 relay；
-- **工具链** `cli`：`demo` / `decode` / `dump` / `soak`。
+## 请求响应关联与交易推进
 
-配套 53 项测试。本版不实现 WebSocket 传输本身、不做 Smart Charging 全量、不做证书与签名计量。
+- `callId` 由发送方的连接持有者生成，同一条连接内唯一；`wire` 只负责编解码，不保存已发出的调用；
+- `transport` 的 `Correlator` 保存未完成调用（`id`、动作、绝对截止时间），响应到达时按 `callId` 配对；未知、重复、过期 id 不进入业务分发；
+- 超时由调用方注入时钟，`expired` 只返回过期 id 并清理；配对失败不伪造结果，业务侧返回标准 CALLERROR；
+- 1.6J 交易由桩侧推进：`StartTransaction` 取得 `transactionId`，`MeterValues` 携带同一交易号，`StopTransaction` 结束，`StatusNotification` 更新连接器状态；后台侧分配交易号并按交易号归档；
+- 2.0.1 交易由 `TransactionEvent` 三阶段推进：`Started` → `Updated` → `Ended`，`seqNo` 在同一交易内严格递增，后台按交易号与序号校验。
 
-## 3. 应用场景
+## 符合性与边界
 
-- 充电桩固件：可编译为 wasm-gc，无运行时依赖；native 目标需要系统 C 编译器；
-- 运营平台：混合车队共用一个端点，不按连接配置版本；
-- 边缘网关：`transport` 信箱留出协议转换与离线缓存的接缝；
-- 协议测试与分析：`decode` / `dump` 可作抓包解释器；
-- 教学与协议学习：两版报文对照实现。
+- 1.6J Core 的 16 个动作全部实现，矩阵见 `docs/conformance.md`；扩展档位单独列出，不混入 Core 计数；
+- 1.6J Core 本身不包含证书管理，证书与签名计量属于 1.6 Security 扩展，本版未实现，因此 Core 声明不涉及证书；
+- 2.0.1 只覆盖会话主链路，不包含设备型号管理、证书管理、安全事件、Smart Charging，**不声称 2.0.1 符合性**；
+- 传输层不实现 WebSocket 与 TLS，库只处理字符串；native 目标需要系统 C 编译器，当前环境未安装；
+- 「复用」指同一套协议层可用于桩、后台、网关与测试工具，**不声称**中断的充电会话在重连后自动恢复；断线重连与离线续传由调用方在 `Correlator` 之上实现。
 
-## 4. 实现路径
+## 原创与参考说明
 
-两版分别建模，而不是一个结构体加版本标志位：1.6 的 `idTag` 是字符串，2.0.1 的 `idToken` 是对象；1.6 的交易是两条消息，2.0.1 是一串带 `seqNo` 的 `TransactionEvent`。
-
-版本判别放在后台侧，按报文形状：`chargingStation` 对 `chargePointModel`，`idToken` 对 `idTag`，`connectorStatus` 对 `status`。判别字段缺失时按 1.6 处理，字段不合法时由读取层返回带字段名的 `SchemaError`。
-
-核心是 sans-IO：只产出和消费字符串，不持有 socket，不读系统时间；时间由 `ClockTime` 注入。可验证性靠字面报文断言、双向 round-trip、方向表校验，外加 `sim` 跑完整会话。
-
-## 5. 当前基础与验收
-
-截至 2026 年 11 月 7 日：MoonBit 源码 4081 行（含测试），53 项测试通过，`moon check --deny-warn` 在本机工具链上干净，`moon build --target wasm` 通过，`moon run cli -- demo` 正常，18 次真实提交。native 目标需要系统 C 编译器，当前环境未安装，未作验证。GitHub Actions 在每次推送执行 `moon check` 与 `moon test`，当前为绿。
-
-验收覆盖：信封 arity 与类型、两版字段名与嵌套、注册/鉴权/交易/计量/状态流程、配置读写、诊断与固件状态、未知动作 CALLERROR、方向表、时间戳、`meterValue` 嵌套、配置项 `readonly` 与 `unknownKey`。
-
-**赛事依据：** MoonBit 2026 十一月黑客松｜[比赛章程](https://bxup9uklfcb.feishu.cn/wiki/KNrVwEVFziPHiGkQtwhc6w3gndd)
+- 本项目为原创项目，不是移植项目，无原项目名称、来源链接与许可证需要声明；
+- 报文与字段依据 OCPP 1.6J / 2.0.1 公开规范核对，代码为自写，不包含第三方代码；
+- 本项目许可证：MIT；
+- 与常见实现相比的设计取舍：
+  - 1.6J 与 2.0.1 分别建模，不用一个结构体加版本标志位；
+  - 版本判别放在后台侧，按报文形状判断，不依赖连接配置；
+  - 核心为 sans-IO，只产出与消费字符串，时间由调用方注入；
+  - 以动作矩阵和测试固定符合性范围，不在文档里使用「全协议」这类不可验证的表述。
