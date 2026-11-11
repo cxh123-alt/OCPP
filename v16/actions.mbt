@@ -20,6 +20,10 @@ pub(all) enum Request {
   DiagnosticsStatusNotification(DiagnosticsStatusNotification)
   FirmwareStatusNotification(FirmwareStatusNotification)
   Reset(Reset)
+  ChangeAvailability(ChangeAvailability)
+  ClearCache
+  DataTransfer(DataTransfer)
+  UnlockConnector(UnlockConnector)
 } derive(Debug, Eq)
 
 ///|
@@ -41,6 +45,10 @@ pub fn Request::action(self : Request) -> String {
     DiagnosticsStatusNotification(_) => "DiagnosticsStatusNotification"
     FirmwareStatusNotification(_) => "FirmwareStatusNotification"
     Reset(_) => "Reset"
+    ChangeAvailability(_) => "ChangeAvailability"
+    ClearCache => "ClearCache"
+    DataTransfer(_) => "DataTransfer"
+    UnlockConnector(_) => "UnlockConnector"
   }
 }
 
@@ -63,6 +71,10 @@ pub fn Request::to_json(self : Request) -> Json {
     DiagnosticsStatusNotification(value) => value.to_json()
     FirmwareStatusNotification(value) => value.to_json()
     Reset(value) => value.to_json()
+    ChangeAvailability(value) => value.to_json()
+    ClearCache => @schema.obj([])
+    DataTransfer(value) => value.to_json()
+    UnlockConnector(value) => value.to_json()
   }
 }
 
@@ -98,6 +110,11 @@ pub fn request_of(
     "FirmwareStatusNotification" =>
       FirmwareStatusNotification(FirmwareStatusNotification::from_json(payload))
     "Reset" => Reset(Reset::from_json(payload))
+    "ChangeAvailability" =>
+      ChangeAvailability(ChangeAvailability::from_json(payload))
+    "ClearCache" => ClearCache
+    "DataTransfer" => DataTransfer(DataTransfer::from_json(payload))
+    "UnlockConnector" => UnlockConnector(UnlockConnector::from_json(payload))
     _ => raise @schema.UnknownCode(action)
   }
 }
@@ -109,6 +126,7 @@ pub fn from_charge_point(action : String) -> Bool {
     "BootNotification" | "Heartbeat" | "Authorize" => true
     "StartTransaction" | "StopTransaction" | "MeterValues" => true
     "StatusNotification" => true
+    "DataTransfer" => true
     "DiagnosticsStatusNotification" => true
     "FirmwareStatusNotification" => true
     _ => false

@@ -842,3 +842,157 @@ pub fn FirmwareStatusNotification::from_json(
 ) -> FirmwareStatusNotification raise @schema.SchemaError {
   { status: @schema.get_string(json, "status"), }
 }
+
+///|
+pub(all) struct ChangeAvailability {
+  connector_id : Int
+  kind : String
+} derive(Debug, Eq)
+
+///|
+pub fn ChangeAvailability::to_json(self : ChangeAvailability) -> Json {
+  @schema.obj([
+    ("connectorId", @schema.integer(self.connector_id)),
+    ("type", @schema.text(self.kind)),
+  ])
+}
+
+///|
+pub fn ChangeAvailability::from_json(
+  json : Json,
+) -> ChangeAvailability raise @schema.SchemaError {
+  {
+    connector_id: @schema.get_int(json, "connectorId"),
+    kind: @schema.get_string(json, "type"),
+  }
+}
+
+///|
+pub(all) struct ChangeAvailabilityResponse {
+  status : String
+} derive(Debug, Eq)
+
+///|
+pub fn ChangeAvailabilityResponse::to_json(
+  self : ChangeAvailabilityResponse,
+) -> Json {
+  @schema.obj([("status", @schema.text(self.status))])
+}
+
+///|
+pub fn ChangeAvailabilityResponse::from_json(
+  json : Json,
+) -> ChangeAvailabilityResponse raise @schema.SchemaError {
+  { status: @schema.get_string(json, "status"), }
+}
+
+///|
+pub(all) struct ClearCacheResponse {
+  status : String
+} derive(Debug, Eq)
+
+///|
+pub fn ClearCacheResponse::to_json(self : ClearCacheResponse) -> Json {
+  @schema.obj([("status", @schema.text(self.status))])
+}
+
+///|
+pub fn ClearCacheResponse::from_json(
+  json : Json,
+) -> ClearCacheResponse raise @schema.SchemaError {
+  { status: @schema.get_string(json, "status"), }
+}
+
+///|
+pub(all) struct DataTransfer {
+  vendor_id : String
+  message_id : String?
+  data : String?
+} derive(Debug, Eq)
+
+///|
+pub fn DataTransfer::to_json(self : DataTransfer) -> Json {
+  let fields : Array[(String, Json)] = [
+    ("vendorId", @schema.text(self.vendor_id)),
+  ]
+  match self.message_id {
+    Some(value) => fields.push(("messageId", @schema.text(value)))
+    None => ()
+  }
+  match self.data {
+    Some(value) => fields.push(("data", @schema.text(value)))
+    None => ()
+  }
+  @schema.obj(fields)
+}
+
+///|
+pub fn DataTransfer::from_json(
+  json : Json,
+) -> DataTransfer raise @schema.SchemaError {
+  {
+    vendor_id: @schema.get_string(json, "vendorId"),
+    message_id: @schema.opt_string(json, "messageId"),
+    data: @schema.opt_string(json, "data"),
+  }
+}
+
+///|
+pub(all) struct DataTransferResponse {
+  status : String
+  data : String?
+} derive(Debug, Eq)
+
+///|
+pub fn DataTransferResponse::to_json(self : DataTransferResponse) -> Json {
+  let fields : Array[(String, Json)] = [("status", @schema.text(self.status))]
+  match self.data {
+    Some(value) => fields.push(("data", @schema.text(value)))
+    None => ()
+  }
+  @schema.obj(fields)
+}
+
+///|
+pub fn DataTransferResponse::from_json(
+  json : Json,
+) -> DataTransferResponse raise @schema.SchemaError {
+  {
+    status: @schema.get_string(json, "status"),
+    data: @schema.opt_string(json, "data"),
+  }
+}
+
+///|
+pub(all) struct UnlockConnector {
+  connector_id : Int
+} derive(Debug, Eq)
+
+///|
+pub fn UnlockConnector::to_json(self : UnlockConnector) -> Json {
+  @schema.obj([("connectorId", @schema.integer(self.connector_id))])
+}
+
+///|
+pub fn UnlockConnector::from_json(
+  json : Json,
+) -> UnlockConnector raise @schema.SchemaError {
+  { connector_id: @schema.get_int(json, "connectorId"), }
+}
+
+///|
+pub(all) struct UnlockConnectorResponse {
+  status : String
+} derive(Debug, Eq)
+
+///|
+pub fn UnlockConnectorResponse::to_json(self : UnlockConnectorResponse) -> Json {
+  @schema.obj([("status", @schema.text(self.status))])
+}
+
+///|
+pub fn UnlockConnectorResponse::from_json(
+  json : Json,
+) -> UnlockConnectorResponse raise @schema.SchemaError {
+  { status: @schema.get_string(json, "status"), }
+}

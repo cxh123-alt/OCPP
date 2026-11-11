@@ -178,3 +178,67 @@ test "notification directions are upstream" {
   assert_true(from_charge_point("FirmwareStatusNotification"))
   assert_true(!from_charge_point("GetDiagnostics"))
 }
+
+///|
+test "change availability round trip" {
+  let request : ChangeAvailability = { connector_id: 1, kind: "Inoperative", }
+  let json = request.to_json()
+  assert_eq(@schema.get_int(json, "connectorId"), 1)
+  assert_eq(@schema.get_string(json, "type"), "Inoperative")
+  assert_eq(ChangeAvailability::from_json(json), request)
+  let response : ChangeAvailabilityResponse = { status: "Accepted", }
+  assert_eq(ChangeAvailabilityResponse::from_json(response.to_json()), response)
+}
+
+///|
+test "clear cache response round trip" {
+  let response : ClearCacheResponse = { status: "Accepted", }
+  assert_eq(ClearCacheResponse::from_json(response.to_json()), response)
+}
+
+///|
+test "data transfer keeps optional fields" {
+  let request : DataTransfer = {
+    vendor_id: "com.example",
+    message_id: Some("firmware"),
+    data: Some("payload"),
+  }
+  assert_eq(DataTransfer::from_json(request.to_json()), request)
+  let bare : DataTransfer = {
+    vendor_id: "com.example",
+    message_id: None,
+    data: None,
+  }
+  assert_eq(DataTransfer::from_json(bare.to_json()), bare)
+  let response : DataTransferResponse = {
+    status: "Accepted",
+    data: Some("ok"),
+  }
+  assert_eq(DataTransferResponse::from_json(response.to_json()), response)
+}
+
+///|
+test "unlock connector round trip" {
+  let request : UnlockConnector = { connector_id: 2, }
+  assert_eq(UnlockConnector::from_json(request.to_json()), request)
+  let response : UnlockConnectorResponse = { status: "Unlocked", }
+  assert_eq(UnlockConnectorResponse::from_json(response.to_json()), response)
+}
+
+///|
+test "core actions are classified and named" {
+  let requests : Array[Request] = [
+    ChangeAvailability({ connector_id: 1, kind: "Operative", }),
+    ClearCache,
+    DataTransfer({ vendor_id: "v", message_id: None, data: None, }),
+    UnlockConnector({ connector_id: 1, }),
+  ]
+  assert_eq(requests[0].action(), "ChangeAvailability")
+  assert_eq(requests[1].action(), "ClearCache")
+  assert_eq(requests[2].action(), "DataTransfer")
+  assert_eq(requests[3].action(), "UnlockConnector")
+  assert_true(!from_charge_point("ChangeAvailability"))
+  assert_true(!from_charge_point("ClearCache"))
+  assert_true(!from_charge_point("UnlockConnector"))
+  assert_true(from_charge_point("DataTransfer"))
+}

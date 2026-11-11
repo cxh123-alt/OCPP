@@ -161,6 +161,10 @@ fn Central::answer(self : Central, call : @wire.Call) -> String? {
       let body = @schema.obj([("status", @schema.text("Accepted"))])
       Some(result_frame(call.id, body))
     }
+    "DataTransfer" => {
+      let body = @schema.obj([("status", @schema.text("Accepted"))])
+      Some(result_frame(call.id, body))
+    }
     _ => Some(error_frame(call.id, "NotImplemented", "action not implemented"))
   }
 }

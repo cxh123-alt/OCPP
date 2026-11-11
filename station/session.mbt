@@ -329,6 +329,34 @@ fn Session::reply_16(self : Session, call : @wire.Call) -> String? {
       }
       Some(result_frame(call.id, payload.to_json()))
     }
+    "ChangeAvailability" => {
+      let _request = @v16.ChangeAvailability::from_json(call.payload) catch {
+        _ => return None
+      }
+      let payload : @v16.ChangeAvailabilityResponse = { status: "Accepted", }
+      Some(result_frame(call.id, payload.to_json()))
+    }
+    "ClearCache" => {
+      let payload : @v16.ClearCacheResponse = { status: "Accepted", }
+      Some(result_frame(call.id, payload.to_json()))
+    }
+    "DataTransfer" => {
+      let _request = @v16.DataTransfer::from_json(call.payload) catch {
+        _ => return None
+      }
+      let payload : @v16.DataTransferResponse = {
+        status: "Accepted",
+        data: None,
+      }
+      Some(result_frame(call.id, payload.to_json()))
+    }
+    "UnlockConnector" => {
+      let _request = @v16.UnlockConnector::from_json(call.payload) catch {
+        _ => return None
+      }
+      let payload : @v16.UnlockConnectorResponse = { status: "Unlocked", }
+      Some(result_frame(call.id, payload.to_json()))
+    }
     "GetDiagnostics" => {
       let _request = @v16.GetDiagnostics::from_json(call.payload) catch {
         _ => return None
