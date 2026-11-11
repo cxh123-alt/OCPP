@@ -24,6 +24,8 @@ OCPP 1.6J 和 2.0.1 的 MoonBit 实现。给充电桩和后台之间那段 WebSo
 | 计量 | MeterValues（sampledValue） | MeterValues（evse + sampledValue） |
 | 状态 | StatusNotification（connector + errorCode） | StatusNotification（evse + connector） |
 | 下发 | RemoteStart、RemoteStop、Reset | RequestStart、RequestStop、Reset |
+| 可用性 | ChangeAvailability、UnlockConnector | — |
+| 缓存/透传 | ClearCache、DataTransfer | — |
 | 配置 | ChangeConfiguration、GetConfiguration | GetVariables、SetVariables |
 | 触发 | RemoteTrigger | — |
 | 诊断 | GetDiagnostics、DiagnosticsStatusNotification、FirmwareStatusNotification | — |
@@ -76,7 +78,7 @@ cli/      命令行
 
 ```bash
 moon check --deny-warn
-moon test --deny-warn      # 53 个用例
+moon test --deny-warn      # 61 个用例
 moon fmt --check
 ```
 
