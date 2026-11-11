@@ -13,7 +13,7 @@
 
 ## 项目简介
 
-OCPP 用 MoonBit 实现充电桩与运营后台之间的协议栈：JSON-RPC 信封、1.6J 与 2.0.1 两版报文、桩侧与后台侧状态机、传输接缝。项目面向桩固件、运营平台、边缘网关与协议测试工具，提供可直接组合的库，而不是绑定某个平台的 demo。当前版本 4423 行（含测试），61 项测试通过，CI 每次推送执行 `moon check` 与 `moon test`。
+OCPP 用 MoonBit 实现充电桩与运营后台之间的协议栈：JSON-RPC 信封、1.6J 与 2.0.1 两版报文、桩侧与后台侧状态机、传输接缝。项目面向桩固件、运营平台、边缘网关与协议测试工具，提供可直接组合的库，而不是绑定某个平台的 demo。当前版本 4423 行（含测试），61 项测试通过，GitHub Actions 在每次推送执行 `moon check` 与 `moon test`，当前为绿。
 
 ## 核心功能范围
 
@@ -44,6 +44,19 @@ OCPP 用 MoonBit 实现充电桩与运营后台之间的协议栈：JSON-RPC 信
 - 2.0.1 只覆盖会话主链路，不包含设备型号管理、证书管理、安全事件、Smart Charging，**不声称 2.0.1 符合性**；
 - 传输层不实现 WebSocket 与 TLS，库只处理字符串；native 目标需要系统 C 编译器，当前环境未安装；
 - 「复用」指同一套协议层可用于桩、后台、网关与测试工具，**不声称**中断的充电会话在重连后自动恢复；断线重连与离线续传由调用方在 `Correlator` 之上实现。
+
+## 材料索引
+
+| 申报内容 | 代码与文档 | 对应测试 |
+|---|---|---|
+| JSON-RPC 信封与错误码 | `wire/frame.mbt`、`wire/codes.mbt` | `wire/wire_test.mbt` |
+| 枚举、时钟、JSON 读写 | `schema/domain.mbt`、`schema/json_read.mbt`、`schema/json_write.mbt` | `schema/schema_test.mbt` |
+| 1.6J Core 16 个动作 | `v16/actions.mbt`、`v16/payloads.mbt` | `v16/v16_test.mbt` |
+| Core 动作矩阵 | `docs/conformance.md` | 同上 |
+| 2.0.1 会话子集 | `v2/actions.mbt`、`v2/payloads.mbt` | `v2/v2_test.mbt` |
+| 请求响应关联与超时 | `transport/pending.mbt` | `transport/transport_test.mbt` |
+| 交易推进与两侧状态机 | `station/session.mbt`、`central/server.mbt` | `station/station_test.mbt`、`sim/sim_test.mbt` |
+| 完整会话演示 | `sim/demo.mbt`、`cli/main.mbt` | `moon run cli -- demo` |
 
 ## 原创与参考说明
 
