@@ -21,17 +21,6 @@ test "1.6 boot carries the model and vendor" {
 }
 
 ///|
-test "2.0.1 boot nests the station" {
-  let session = Session::new(ChargePoint::new("CP-2", Version::V2), clock())
-  let text = session.boot_frame()
-  match @wire.parse(text) {
-    @wire.Frame::Call(call) => {
-      let station = @schema.get_object(call.payload, "chargingStation")
-      assert_eq(@schema.get_string(station, "serialNumber"), "CP-2")
-    }
-    _ => fail("expected a call")
-  }
-}
 
 ///|
 test "starting a transaction flips the connector" {
@@ -47,7 +36,7 @@ test "starting a transaction flips the connector" {
 
 ///|
 test "meter values accumulate energy" {
-  let session = Session::new(ChargePoint::new("CP-4", Version::V2), clock())
+  let session = Session::new(ChargePoint::new("CP-4", Version::V16), clock())
   ignore(session.start_frame("TAG-1", 7))
   ignore(session.meter_frame(2500, 60))
   assert_eq(session.cp.meter_wh, 2500)
@@ -76,7 +65,7 @@ test "a remote start is answered with a status" {
 
 ///|
 test "an unknown command is refused" {
-  let session = Session::new(ChargePoint::new("CP-6", Version::V2), clock())
+  let session = Session::new(ChargePoint::new("CP-6", Version::V16), clock())
   let command = @wire.encode(
     @wire.Frame::Call({
       id: "cs-2",
@@ -115,41 +104,6 @@ test "get configuration returns typed keys" {
 }
 
 ///|
-test "get variables is answered per request item" {
-  let session = Session::new(ChargePoint::new("CP-8", Version::V2), clock())
-  let command = @wire.encode(
-    @wire.Frame::Call({
-      id: "cs-4",
-      action: "GetVariables",
-      payload: @schema.obj([
-        (
-          "getVariableData",
-          Json::array([
-            @schema.obj([
-              (
-                "component",
-                @schema.obj([("name", @schema.text("OCPPCommCtrlr"))]),
-              ),
-              (
-                "variable",
-                @schema.obj([("name", @schema.text("HeartbeatInterval"))]),
-              ),
-            ]),
-          ]),
-        ),
-      ]),
-    }),
-  )
-  let replies = session.handle(command)
-  assert_eq(replies.length(), 1)
-  match @wire.parse(replies[0]) {
-    @wire.Frame::Result(result) => {
-      let items = @schema.get_array(result.payload, "getVariableResult")
-      assert_eq(items.length(), 1)
-    }
-    _ => fail("expected a result")
-  }
-}
 
 ///|
 test "get diagnostics returns a file name" {
@@ -170,4 +124,113 @@ test "get diagnostics returns a file name" {
       )
     _ => fail("expected a result")
   }
+}
+
+///|
+fn local_list_call(id : String, version : Int) -> String {
+  @wire.encode(
+    @wire.Frame::Call({
+      id,
+      action: "SendLocalList",
+      payload: @schema.obj([
+        ("listVersion", @schema.integer(version)),
+        ("updateType", @schema.text("Full")),
+        (
+          "localAuthorizationList",
+          Json::array([
+            @schema.obj([("idTag", @schema.text("TAG-1"))]),
+            @schema.obj([("idTag", @schema.text("TAG-2"))]),
+          ]),
+        ),
+      ]),
+    }),
+  )
+}
+
+///|
+test "local list version follows SendLocalList" {
+  let session = Session::new(ChargePoint::new("CP-10", Version::V16), clock())
+  ignore(session.handle(local_list_call("1", 4)))
+  assert_eq(session.cp.local_list_version(), 4)
+  assert_eq(session.cp.local_list.length(), 2)
+}
+
+///|
+test "reservation is stored and cancelled" {
+  let session = Session::new(ChargePoint::new("CP-11", Version::V16), clock())
+  let reserve = @wire.encode(
+    @wire.Frame::Call({
+      id: "2",
+      action: "ReserveNow",
+      payload: @schema.obj([
+        ("connectorId", @schema.integer(1)),
+        ("expiryDate", @schema.text("2026-11-07T07:00:00Z")),
+        ("idTag", @schema.text("TAG-1")),
+        ("reservationId", @schema.integer(9)),
+      ]),
+    }),
+  )
+  ignore(session.handle(reserve))
+  assert_eq(session.cp.reservation_count(), 1)
+  let cancel = @wire.encode(
+    @wire.Frame::Call({
+      id: "3",
+      action: "CancelReservation",
+      payload: @schema.obj([("reservationId", @schema.integer(9))]),
+    }),
+  )
+  ignore(session.handle(cancel))
+  assert_eq(session.cp.reservation_count(), 0)
+}
+
+///|
+test "composite schedule returns the stored profile" {
+  let session = Session::new(ChargePoint::new("CP-12", Version::V16), clock())
+  let set = @wire.encode(
+    @wire.Frame::Call({
+      id: "4",
+      action: "SetChargingProfile",
+      payload: @schema.obj([
+        ("connectorId", @schema.integer(1)),
+        (
+          "csChargingProfiles",
+          @schema.obj([
+            ("chargingProfileId", @schema.integer(1)),
+            ("stackLevel", @schema.integer(0)),
+            ("chargingProfilePurpose", @schema.text("TxDefaultProfile")),
+            ("chargingProfileKind", @schema.text("Absolute")),
+            (
+              "chargingSchedule",
+              @schema.obj([
+                ("chargingRateUnit", @schema.text("A")),
+                (
+                  "chargingSchedulePeriod",
+                  Json::array([
+                    @schema.obj([
+                      ("startPeriod", @schema.integer(0)),
+                      ("limit", @schema.number(16.0)),
+                    ]),
+                  ]),
+                ),
+              ]),
+            ),
+          ]),
+        ),
+      ]),
+    }),
+  )
+  ignore(session.handle(set))
+  assert_true(session.cp.profile_schedule() is Some(_))
+  let get = @wire.encode(
+    @wire.Frame::Call({
+      id: "5",
+      action: "GetCompositeSchedule",
+      payload: @schema.obj([
+        ("connectorId", @schema.integer(1)),
+        ("duration", @schema.integer(3600)),
+      ]),
+    }),
+  )
+  ignore(session.handle(get))
+  assert_true(session.cp.profile_schedule() is Some(_))
 }

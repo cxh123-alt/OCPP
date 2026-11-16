@@ -13,17 +13,6 @@ fn call_frame16(session : Session, payload : @v16.Request) -> String {
 }
 
 ///|
-fn call_frame2(session : Session, payload : @v2.Request) -> String {
-  @wire.encode(
-    @wire.Frame::Call({
-      id: session.cp.message_id(),
-      action: payload.action(),
-      payload: payload.to_json(),
-    }),
-  )
-}
-
-///|
 fn result_frame(id : String, payload : Json) -> String {
   @wire.encode(@wire.Frame::Result({ id, payload, }))
 }

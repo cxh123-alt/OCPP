@@ -1,8 +1,10 @@
 # OCPP
 
-OCPP 1.6J 和 2.0.1 的 MoonBit 实现。给充电桩和后台之间那段 WebSocket 对话一个不依赖 Node、不依赖 JVM 的库：帧、报文、状态机，都在这里。
+OCPP 1.6J 的 MoonBit 实现。给充电桩和后台之间那段 WebSocket 对话一个不依赖 Node、不依赖 JVM 的库：帧、报文、状态机，都在这里。
 
-符合性目标：OCPP 1.6J 全量 28/28（Core、Firmware Management、Local Auth List、Reservation、Remote Trigger、Smart Charging）；2.0.1 代码保留为实验，不参与符合性声明。动作矩阵见 [docs/conformance.md](docs/conformance.md)，请求响应关联与交易推进见 [docs/correlation.md](docs/correlation.md)。
+符合性目标：OCPP 1.6J 全量 28/28（Core、Firmware Management、Local Auth List、Reservation、Remote Trigger、Smart Charging）。动作矩阵见 [docs/conformance.md](docs/conformance.md)，请求响应关联与交易推进见 [docs/correlation.md](docs/correlation.md)。
+
+2.0.1 的旧代码不在 `master` 上，已归档到 `archive/ocpp-2.0.1` 分支，不参与构建与验收。
 
 ![demo](docs/demo.gif)
 
@@ -15,34 +17,25 @@ OCPP 1.6J 和 2.0.1 的 MoonBit 实现。给充电桩和后台之间那段 WebSo
 
 ## 覆盖范围
 
-| 层 | 1.6J | 2.0.1 |
-|---|---|---|
-| 信封 | CALL / CALLRESULT / CALLERROR | 同左 |
-| 启动 | BootNotification、Heartbeat | BootNotification、Heartbeat |
-| 身份 | Authorize（idTag 字符串） | Authorize（idToken 对象） |
-| 交易 | StartTransaction、StopTransaction | TransactionEvent（Started / Updated / Ended） |
-| 计量 | MeterValues（sampledValue） | MeterValues（evse + sampledValue） |
-| 状态 | StatusNotification（connector + errorCode） | StatusNotification（evse + connector） |
-| 下发 | RemoteStart、RemoteStop、Reset | RequestStart、RequestStop、Reset |
-| 可用性 | ChangeAvailability、UnlockConnector | — |
-| 缓存/透传 | ClearCache、DataTransfer | — |
-| 配置 | ChangeConfiguration、GetConfiguration | GetVariables、SetVariables |
-| 固件 | UpdateFirmware | — |
-| 本地名单 | GetLocalListVersion、SendLocalList | — |
-| 预约 | ReserveNow、CancelReservation | — |
-| 充电调度 | SetChargingProfile、ClearChargingProfile、GetCompositeSchedule | — |
-| 触发 | RemoteTrigger | — |
-| 诊断 | GetDiagnostics、DiagnosticsStatusNotification、FirmwareStatusNotification | — |
+| 功能块 | 动作 |
+|---|---|
+| 信封 | CALL / CALLRESULT / CALLERROR |
+| Core | BootNotification、Heartbeat、Authorize、StartTransaction、StopTransaction、MeterValues、StatusNotification、RemoteStartTransaction、RemoteStopTransaction、ChangeConfiguration、GetConfiguration、ChangeAvailability、ClearCache、DataTransfer、UnlockConnector、Reset |
+| Firmware Management | GetDiagnostics、DiagnosticsStatusNotification、FirmwareStatusNotification、UpdateFirmware |
+| Local Auth List | GetLocalListVersion、SendLocalList |
+| Reservation | ReserveNow、CancelReservation |
+| Remote Trigger | RemoteTrigger |
+| Smart Charging | SetChargingProfile、ClearChargingProfile、GetCompositeSchedule |
 
 不在表里的动作不会崩：桩侧回 `NotSupported`，后台侧回 `NotImplemented`，两边都是合法的 CALLERROR。
 
 ## 跑起来
 
 ```bash
-moon run cli -- demo          # 两个版本各跑一遍
-moon run cli -- demo 2.0.1    # 只跑 2.0.1
+moon run cli -- demo
 moon run cli -- decode '[2,"1","Heartbeat",{}]'
 moon run cli -- soak 50
+moon run cli -- dump
 ```
 
 `fixtures/` 里是从 demo 抄下来的完整报文，可以直接 `decode`。
@@ -50,43 +43,43 @@ moon run cli -- soak 50
 ## 目录
 
 ```
-transport/ 传输接缝：方向信箱与 relay
 wire/     JSON-RPC 数组信封，三种消息类型与错误码
-schema/   两侧共用：状态枚举、时间戳、JSON 读写
+schema/   共用：状态枚举、时间戳、JSON 读写
 v16/      1.6J 的报文结构 + 动作表
-v2/       2.0.1 的报文结构 + 动作表
-station/  充电桩：连接器状态、电表、交易号
-central/  后台：会话登记、鉴权、交易计数
+station/  充电桩：连接器、电表、交易号、预约、本地名单、充电曲线
+central/  后台：会话登记、鉴权、交易计数、下发命令
+transport/传输接缝：方向信箱与 Correlator
 sim/      脚本化的「桩 ↔ 后台」对话
 cli/      命令行
 ```
 
-依赖是单向的：`v16` / `v2` 依赖 `schema`，`station` 和 `central` 依赖两者，`sim` 才能同时看到两侧。桩不认识后台，后台也不认识桩——这条约束让两边都能独立测试。
+依赖单向：`v16` 依赖 `schema`，`station` 和 `central` 依赖 `v16`，`sim` 才能同时看到两侧。桩不认识后台，后台也不认识桩。
 
 ## 两个设计选择
 
-**版本写在连接上。** OCPP 在 WebSocket 握手的 `Sec-WebSocket-Protocol` 里协商版本，库把协商结果作为参数传入（`central.handle(V16, text)`），不靠报文形状判断。`Heartbeat` 两版都是 `{}`，`Reset` 都是 `{"type": ...}`，形状判别在这些报文上必然出错。
+**版本写在连接上。** OCPP 在 WebSocket 握手的 `Sec-WebSocket-Protocol` 里协商版本，库把结果作为参数传入（`central.handle(V16, text)`），不靠报文形状判断。`Heartbeat` 是 `{}`，`Reset` 是 `{"type": ...}`，形状判别在这些报文上必然出错；当前只交付 1.6J。
 
-**sans-IO。** 所有方法返回「本该发出去的字符串」，不持有 socket。测试里可以把一次完整充电跑完，CLI 里可以直接打印，将来接 WebSocket 也只是把字符串写出去。
+**sans-IO。** 所有方法返回「本该发出去的字符串」，不持有 socket。测试里可以把一次完整充电跑完，CLI 里可以直接打印，接 WebSocket 时只把字符串写出去。
 
 更多见 [docs/architecture.md](docs/architecture.md)、[docs/transport.md](docs/transport.md)，动作覆盖见 [docs/protocol-coverage.md](docs/protocol-coverage.md)，申报书见 [docs/proposal.md](docs/proposal.md)。
 
 ## 边界
 
 - 没有 WebSocket 传输层；本仓库只到报文为止。
-- 1.6 的 Smart Charging、Firmware Management、Reservation 等扩展档位未实现。
-- 2.0.1 的签名计量（signedMeterValue）、证书链、插头锁等未实现。
+- 1.6 Security 扩展（证书、签名计量）不在目标内。
+- Smart Charging 只保存并返回下发的曲线，不做调度计算；预约只做登记与取消，不做占用裁决。
 - 时间来自注入的时钟，不读系统时间，便于复现。
 
 ## 验证
 
 ```bash
 moon check --deny-warn
-moon test --deny-warn      # 69 个用例
+moon test --deny-warn      # 58 个用例
 moon fmt --check
+moon build --target wasm
 ```
 
-测试覆盖信封合法性、两种报文的字段名、双方握手与完整交易流程，以及未知动作的处理。
+测试覆盖信封合法性、28 条消息的字段与往返、版本绑定、关联超时、预约/名单/曲线状态与未知动作处理。
 
 ## 许可
 

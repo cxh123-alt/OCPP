@@ -24,10 +24,7 @@ pub fn run(version : @station.Version, meter_rounds : Int) -> Array[Exchange] {
     clock,
   )
   let central = @central.Central::new(clock)
-  let proto = match version {
-    @station.V16 => @central.V16
-    @station.V2 => @central.V201
-  }
+  let proto = @central.V16
   let log : Array[Exchange] = []
   pump(log, session, central, proto, session.boot_frame())
   pump(log, session, central, proto, session.authorize_frame("TAG-1"))

@@ -49,16 +49,8 @@ StatusNotification(connectorId, status, errorCode)
 - 后台侧 `central` 在 `StartTransaction` 时分配交易号并计数，在 `StopTransaction` 时按交易号归档；
 - `MeterValues` 的 `transactionId` 来自桩侧保存的交易号，不从报文里猜。
 
-### 2.0.1
+2.0.1 的 `TransactionEvent` 交易模型随代码一起归档到 `archive/ocpp-2.0.1` 分支，不在 master 上。
 
-`TransactionEvent` 用三阶段事件推进，`seqNo` 在同一交易内严格递增：
-
-```
-Started → Updated → ... → Ended
-```
-
-- 桩侧在 `begin_transaction` / `end_transaction` 时生成 Started / Ended，中间按采样周期发 Updated；
-- 后台侧按 `transactionId` 与 `seqNo` 校验顺序，重复或倒退的 `seqNo` 不推进状态。
 
 ## 关于「复用」
 

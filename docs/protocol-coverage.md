@@ -1,37 +1,19 @@
 # 动作覆盖
 
-| 动作 | 方向 | 1.6J | 2.0.1 | 实现文件 |
-|---|---|---|---|---|
-| BootNotification | 桩 → 后台 | 是 | 是 | `v16/payloads.mbt`、`v2/payloads.mbt` |
-| Heartbeat | 桩 → 后台 | 是 | 是 | 同上 |
-| Authorize | 桩 → 后台 | 是 | 是 | 同上 |
-| StartTransaction | 桩 → 后台 | 是 | — | `v16/payloads.mbt` |
-| StopTransaction | 桩 → 后台 | 是 | — | `v16/payloads.mbt` |
-| TransactionEvent | 桩 → 后台 | — | 是 | `v2/payloads.mbt` |
-| MeterValues | 桩 → 后台 | 是 | 是 | 两者 |
-| StatusNotification | 桩 → 后台 | 是 | 是 | 两者 |
-| RemoteStartTransaction | 后台 → 桩 | 是 | — | `station/session.mbt` |
-| RemoteStopTransaction | 后台 → 桩 | 是 | — | `station/session.mbt` |
-| RequestStartTransaction | 后台 → 桩 | — | 是 | `station/session.mbt` |
-| RequestStopTransaction | 后台 → 桩 | — | 是 | `station/session.mbt` |
-| Reset | 后台 → 桩 | 是 | 是 | 两者 |
-| ChangeConfiguration | 后台 → 桩 | 是 | — | v16 + station |
-| GetConfiguration | 后台 → 桩 | 是 | — | v16 + station |
-| RemoteTrigger | 后台 → 桩 | 是 | — | v16 + station |
-| GetVariables | 后台 → 桩 | — | 是 | v2 + station |
-| SetVariables | 后台 → 桩 | — | 是 | v2 + station |
-| GetDiagnostics | 后台 → 桩 | 是 | — | v16 + station |
-| DiagnosticsStatusNotification | 桩 → 后台 | 是 | — | v16 + central |
-| FirmwareStatusNotification | 桩 → 后台 | 是 | — | v16 + central |
+本仓库交付 OCPP 1.6J 全量 28 条消息，逐条状态见 [conformance.md](conformance.md)。这里是按功能块的速查。
 
-## 未实现
+| 功能块 | 动作 | 方向 |
+|---|---|---|
+| Core | BootNotification、Heartbeat、Authorize、MeterValues、StatusNotification、StartTransaction、StopTransaction | 桩 → 后台 |
+| Core | RemoteStartTransaction、RemoteStopTransaction、Reset、ChangeConfiguration、GetConfiguration、ChangeAvailability、ClearCache、UnlockConnector | 后台 → 桩 |
+| Core | DataTransfer | 双向 |
+| Firmware Management | DiagnosticsStatusNotification、FirmwareStatusNotification | 桩 → 后台 |
+| Firmware Management | GetDiagnostics、UpdateFirmware | 后台 → 桩 |
+| Local Auth List | GetLocalListVersion、SendLocalList | 后台 → 桩 |
+| Reservation | ReserveNow、CancelReservation | 后台 → 桩 |
+| Remote Trigger | RemoteTrigger | 后台 → 桩 |
+| Smart Charging | SetChargingProfile、ClearChargingProfile、GetCompositeSchedule | 后台 → 桩 |
 
-**1.6J**：ReserveNow / CancelReservation、UnlockConnector、ChangeAvailability、SendLocalList、DataTransfer，以及 Smart Charging 的全部动作。
+未列入的动作由桩侧回 `NotSupported`、后台侧回 `NotImplemented`，都是合法的 CALLERROR。
 
-**2.0.1**：Security 事件、CertificateSigned、SetChargingProfile、GetCompositeSchedule、UpdateFirmware、PublishFirmware、ReserveNow、UnlockConnector、DataTransfer、DisplayMessage。
-
-## 已知简化
-
-- 2.0.1 的 `TransactionEvent` 只编码必需字段，`meterValue` 为可选数组，`triggerReason` 用字符串。
-- 2.0.1 的 `StatusNotification` 不区分 `connectorId` 为 0 的整桩状态语义。
-- 1.6 的 `StopTransaction` 不带 `transactionData`。
+2.0.1 的旧覆盖表跟随代码一起移到了 `archive/ocpp-2.0.1` 分支。

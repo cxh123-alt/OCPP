@@ -17,23 +17,6 @@ test "1.6 session walks boot to status" {
 }
 
 ///|
-test "2.0.1 session uses transaction events" {
-  let log = run(@station.Version::V2, 2)
-  let mut started = 0
-  let mut ended = 0
-  for item in log {
-    if item.action == "TransactionEvent" {
-      if item.text.contains("Started") {
-        started = started + 1
-      }
-      if item.text.contains("Ended") {
-        ended = ended + 1
-      }
-    }
-  }
-  assert_eq(started, 1)
-  assert_eq(ended, 1)
-}
 
 ///|
 test "every central reply follows a charge point call" {

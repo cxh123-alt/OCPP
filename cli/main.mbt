@@ -17,26 +17,18 @@ fn main {
 
 ///|
 fn usage() -> Unit {
-  println("ocpp - OCPP 1.6J / 2.0.1 companion")
+  println("ocpp - OCPP 1.6J companion")
   println("")
-  println("  ocpp demo [1.6|2.0.1]   run a scripted charging session")
+  println("  ocpp demo              run a scripted charging session")
   println("  ocpp decode <json>      explain one frame")
   println("  ocpp soak [n]           run n sessions and report counters")
-  println("  ocpp dump [1.6|2.0.1]   print full frames, one per line")
+  println("  ocpp dump              print full frames, one per line")
 }
 
 ///|
 fn demo(args : Array[String]) -> Unit {
-  let only = if args.length() > 2 { args[2] } else { "both" }
-  if only != "2.0.1" {
-    show(@station.Version::V16, 3)
-  }
-  if only != "1.6" {
-    if only == "both" {
-      println("")
-    }
-    show(@station.Version::V2, 3)
-  }
+  ignore(args)
+  show(@station.Version::V16, 3)
 }
 
 ///|
@@ -92,14 +84,11 @@ fn soak(args : Array[String]) -> Unit {
     100
   }
   let mut exchanges_16 = 0
-  let mut exchanges_2 = 0
   for _ in 0..<count {
     exchanges_16 = exchanges_16 + @sim.run(@station.Version::V16, 3).length()
-    exchanges_2 = exchanges_2 + @sim.run(@station.Version::V2, 3).length()
   }
-  println("sessions=" + (count * 2).to_string())
+  println("sessions=" + count.to_string())
   println("1.6J exchanges=" + exchanges_16.to_string())
-  println("2.0.1 exchanges=" + exchanges_2.to_string())
 }
 
 ///|
@@ -148,13 +137,8 @@ fn parse_int(text : String) -> Int? {
 
 ///|
 fn dump(args : Array[String]) -> Unit {
-  let only = if args.length() > 2 { args[2] } else { "1.6" }
-  let version = if only == "2.0.1" {
-    @station.Version::V2
-  } else {
-    @station.Version::V16
-  }
-  for item in @sim.run(version, 3) {
-    println(item.direction + "\t" + item.action + "\t" + item.text)
+  ignore(args)
+  for item in @sim.run(@station.Version::V16, 3) {
+    println(item.direction + "\\t" + item.action + "\\t" + item.text)
   }
 }

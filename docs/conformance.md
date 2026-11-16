@@ -2,7 +2,7 @@
 
 本项目的符合性目标是 **OCPP 1.6J 全量消息集**：Core、Firmware Management、Local Auth List Management、Reservation、Remote Trigger、Smart Charging 六个功能块，共 28 条请求/响应。
 
-2.0.1 的代码保留在 `v2/` 作为实验，**不在符合性目标内**，也不参与验收。
+2.0.1 的旧代码已归档到 `archive/ocpp-2.0.1` 分支，不在 `master` 上，也不参与验收。
 
 ## 1.6J 全量矩阵
 
@@ -66,16 +66,17 @@
 
 合计 16 + 4 + 2 + 2 + 1 + 3 = **28 / 28**。
 
+说明：Smart Charging 三项目前做到「保存并返回下发的曲线」，不做调度计算；Reservation 做到「登记与取消」，不做占用裁决；Local Auth List 做到「保存版本与名单」。
+
 ## 版本识别
 
-协议版本是**连接属性**，不是报文属性。OCPP 在 WebSocket 握手的 `Sec-WebSocket-Protocol` 里协商版本（`ocpp1.6` / `ocpp2.0.1`），库把协商结果作为参数传入：
+协议版本是**连接属性**，不是报文属性。OCPP 在 WebSocket 握手的 `Sec-WebSocket-Protocol` 里协商版本（`ocpp1.6`），库把协商结果作为参数传入：
 
 ```moonbit
-central.handle(V16, text)    // 1.6J 连接
-central.handle(V201, text)   // 2.0.1 连接（实验）
+central.handle(V16, text)    // 连接绑定 1.6J
 ```
 
-不使用报文形状做判别。`Heartbeat` 在两版里都是 `{}`，`Reset` 都是 `{"type": ...}`，形状相同的报文只能由连接绑定决定解码器。
+不使用报文形状做判别。`Heartbeat` 是 `{}`，`Reset` 是 `{"type": ...}`，形状相同的报文只能由连接绑定决定解码器。
 
 ## 下发命令流程（CS → CP）
 
@@ -93,7 +94,7 @@ let call = central.command16(@v16.Reset({ kind: @schema.Soft }))
 ## 证书与安全
 
 - 1.6J 全量消息集不包含证书管理；1.6 Security 扩展（证书、签名计量）不在本目标内；
-- 2.0.1 的证书管理与安全事件不属于实验代码范围；
+
 - 传输层不实现 TLS 与证书校验，库只处理字符串。
 
 ## 验证

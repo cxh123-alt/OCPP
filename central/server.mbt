@@ -1,12 +1,10 @@
-// The central system side. The protocol revision is bound per connection when
-// the session is opened (in OCPP that binding comes from the WebSocket
-// subprotocol), never inferred from a payload: Heartbeat is {} in both
-// revisions, and several commands share a shape.
+// The central system side for 1.6J. The revision is bound per connection when
+// the session opens (in OCPP the binding is the WebSocket subprotocol); it is
+// never inferred from a payload shape.
 
 ///|
 pub(all) enum ProtocolVersion {
   V16
-  V201
 } derive(Debug, Eq)
 
 ///|
@@ -89,10 +87,10 @@ fn Central::answer(
   call : @wire.Call,
 ) -> String? {
   let payload = call.payload
+  ignore(version)
   match call.action {
     "BootNotification" => {
-      let is_v2 = version == V201
-      let record = self.record(station_id(payload, is_v2))
+      let record = self.record(station_id(payload))
       record.boots = record.boots + 1
       let body = @schema.obj([
         ("status", @schema.text("Accepted")),
@@ -106,28 +104,17 @@ fn Central::answer(
       Some(result_frame(call.id, body))
     }
     "Authorize" => {
-      let is_v2 = version == V201
-      let tag = if is_v2 {
-        @schema.get_string(inner(payload, "idToken"), "idToken") catch {
-          _ => ""
-        }
-      } else {
-        @schema.get_string(payload, "idTag") catch {
-          _ => ""
-        }
-      }
+      let tag = @schema.get_string(payload, "idTag") catch { _ => "" }
       let accepted = tag != "BAD"
       let status = if accepted { "Accepted" } else { "Invalid" }
-      let body = if is_v2 {
-        @schema.obj([
-          ("idTokenInfo", @schema.obj([("status", @schema.text(status))])),
-        ])
-      } else {
-        @schema.obj([
-          ("idTagInfo", @schema.obj([("status", @schema.text(status))])),
-        ])
-      }
-      Some(result_frame(call.id, body))
+      Some(
+        result_frame(
+          call.id,
+          @schema.obj([
+            ("idTagInfo", @schema.obj([("status", @schema.text(status))])),
+          ]),
+        ),
+      )
     }
     "StartTransaction" => {
       self.next_transaction = self.next_transaction + 1
@@ -144,27 +131,14 @@ fn Central::answer(
       record.transactions = record.transactions + 1
       Some(result_frame(call.id, @schema.empty()))
     }
-    "TransactionEvent" => {
-      self.next_transaction = self.next_transaction + 1
-      let body = @schema.obj([
-        ("idTokenInfo", @schema.obj([("status", @schema.text("Accepted"))])),
-      ])
-      Some(result_frame(call.id, body))
-    }
     "MeterValues" => {
       let record = self.record("station")
       record.meters = record.meters + 1
       Some(result_frame(call.id, @schema.empty()))
     }
     "StatusNotification" => {
-      let status = if version == V201 {
-        @schema.get_string(payload, "connectorStatus") catch {
-          _ => "Unknown"
-        }
-      } else {
-        @schema.get_string(payload, "status") catch {
-          _ => "Unknown"
-        }
+      let status = @schema.get_string(payload, "status") catch {
+        _ => "Unknown"
       }
       let record = self.record("station")
       record.last_status = status
@@ -186,37 +160,32 @@ fn Central::answer(
 }
 
 ///|
-fn station_id(payload : Json, is_v2 : Bool) -> String {
-  if is_v2 {
-    let station = inner(payload, "chargingStation")
-    let serial = @schema.opt_string(station, "serialNumber") catch { _ => None }
-    match serial {
-      Some(value) => value
-      None => @schema.get_string(station, "model") catch { _ => "unknown" }
-    }
-  } else {
-    let serial = @schema.opt_string(payload, "chargePointSerialNumber") catch {
-      _ => None
-    }
-    match serial {
-      Some(value) => value
-      None =>
-        @schema.get_string(payload, "chargePointModel") catch {
-          _ => "unknown"
-        }
-    }
-  }
+/// Build a central-to-charge-point call for the bound 1.6J session. The caller
+/// writes the returned string to the transport; the station decodes it with the
+/// same binding and answers with the same callId.
+pub fn Central::command16(self : Central, request : @v16.Request) -> String {
+  self.next_call = self.next_call + 1
+  let id = "cs-" + self.next_call.to_string()
+  @wire.encode(
+    @wire.Frame::Call({
+      id,
+      action: request.action(),
+      payload: request.to_json(),
+    }),
+  )
 }
 
 ///|
-fn inner(json : Json, key : String) -> Json {
-  match json {
-    Json::Object(fields) =>
-      match fields.get(key) {
-        Some(value) => value
-        None => @schema.empty()
+fn station_id(payload : Json) -> String {
+  let serial = @schema.opt_string(payload, "chargePointSerialNumber") catch {
+    _ => None
+  }
+  match serial {
+    Some(value) => value
+    None =>
+      @schema.get_string(payload, "chargePointModel") catch {
+        _ => "unknown"
       }
-    _ => @schema.empty()
   }
 }
 
@@ -229,21 +198,5 @@ fn result_frame(id : String, payload : Json) -> String {
 fn error_frame(id : String, code : String, description : String) -> String {
   @wire.encode(
     @wire.Frame::Failure({ id, code, description, details: @schema.empty(), }),
-  )
-}
-
-///|
-/// Build a central-to-charge-point call for a bound 1.6J session. The caller
-/// writes the returned string to the transport; the station decodes it with the
-/// same binding and answers with the same callId.
-pub fn Central::command16(self : Central, request : @v16.Request) -> String {
-  self.next_call = self.next_call + 1
-  let id = "cs-" + self.next_call.to_string()
-  @wire.encode(
-    @wire.Frame::Call({
-      id,
-      action: request.action(),
-      payload: request.to_json(),
-    }),
   )
 }
