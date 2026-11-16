@@ -1,4 +1,5 @@
 import {
   "cxh123-alt/ocpp/schema",
   "cxh123-alt/ocpp/wire",
+  "cxh123-alt/ocpp/v16",
 }

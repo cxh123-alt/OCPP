@@ -24,15 +24,25 @@ pub fn run(version : @station.Version, meter_rounds : Int) -> Array[Exchange] {
     clock,
   )
   let central = @central.Central::new(clock)
-  let log : Array[Exchange] = []
-  pump(log, session, central, session.boot_frame())
-  pump(log, session, central, session.authorize_frame("TAG-1"))
-  pump(log, session, central, session.start_frame("TAG-1", 1))
-  for round in 0..<meter_rounds {
-    pump(log, session, central, session.meter_frame(750 + round * 100, 60))
+  let proto = match version {
+    @station.V16 => @central.V16
+    @station.V2 => @central.V201
   }
-  pump(log, session, central, session.stop_frame("Local", 0))
-  pump(log, session, central, session.status_frame())
+  let log : Array[Exchange] = []
+  pump(log, session, central, proto, session.boot_frame())
+  pump(log, session, central, proto, session.authorize_frame("TAG-1"))
+  pump(log, session, central, proto, session.start_frame("TAG-1", 1))
+  for round in 0..<meter_rounds {
+    pump(
+      log,
+      session,
+      central,
+      proto,
+      session.meter_frame(750 + round * 100, 60),
+    )
+  }
+  pump(log, session, central, proto, session.stop_frame("Local", 0))
+  pump(log, session, central, proto, session.status_frame())
   log
 }
 
@@ -41,16 +51,17 @@ fn pump(
   log : Array[Exchange],
   session : @station.Session,
   central : @central.Central,
+  version : @central.ProtocolVersion,
   outgoing : String,
 ) -> Unit {
   record(log, "cp→cs", outgoing)
-  let replies = central.handle(outgoing)
+  let replies = central.handle(version, outgoing)
   for reply in replies {
     record(log, "cs→cp", reply)
     let follow_ups = session.handle(reply)
     for follow_up in follow_ups {
       record(log, "cp→cs", follow_up)
-      ignore(central.handle(follow_up))
+      ignore(central.handle(version, follow_up))
     }
   }
 }

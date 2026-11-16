@@ -2,7 +2,7 @@
 
 OCPP 1.6J 和 2.0.1 的 MoonBit 实现。给充电桩和后台之间那段 WebSocket 对话一个不依赖 Node、不依赖 JVM 的库：帧、报文、状态机，都在这里。
 
-符合性目标：OCPP 1.6J Core 档位 16/16；Remote Trigger 与固件管理作为扩展单列；2.0.1 只覆盖会话主链路子集，不作符合性声明。动作矩阵见 [docs/conformance.md](docs/conformance.md)，请求响应关联与交易推进见 [docs/correlation.md](docs/correlation.md)。
+符合性目标：OCPP 1.6J 全量 28/28（Core、Firmware Management、Local Auth List、Reservation、Remote Trigger、Smart Charging）；2.0.1 代码保留为实验，不参与符合性声明。动作矩阵见 [docs/conformance.md](docs/conformance.md)，请求响应关联与交易推进见 [docs/correlation.md](docs/correlation.md)。
 
 ![demo](docs/demo.gif)
 
@@ -27,6 +27,10 @@ OCPP 1.6J 和 2.0.1 的 MoonBit 实现。给充电桩和后台之间那段 WebSo
 | 可用性 | ChangeAvailability、UnlockConnector | — |
 | 缓存/透传 | ClearCache、DataTransfer | — |
 | 配置 | ChangeConfiguration、GetConfiguration | GetVariables、SetVariables |
+| 固件 | UpdateFirmware | — |
+| 本地名单 | GetLocalListVersion、SendLocalList | — |
+| 预约 | ReserveNow、CancelReservation | — |
+| 充电调度 | SetChargingProfile、ClearChargingProfile、GetCompositeSchedule | — |
 | 触发 | RemoteTrigger | — |
 | 诊断 | GetDiagnostics、DiagnosticsStatusNotification、FirmwareStatusNotification | — |
 
@@ -61,7 +65,7 @@ cli/      命令行
 
 ## 两个设计选择
 
-**版本不写在连接上。** 现场一台后台经常同时接 1.6 和 2.0.1 的桩，所以 `central` 靠报文形状区分：有 `chargingStation` 就是 2.0.1，有 `chargePointModel` 就是 1.6；`idToken` 对象对 `idTag` 字符串，`connectorStatus` 对 `status`。这样混合车队不需要按连接配置。
+**版本写在连接上。** OCPP 在 WebSocket 握手的 `Sec-WebSocket-Protocol` 里协商版本，库把协商结果作为参数传入（`central.handle(V16, text)`），不靠报文形状判断。`Heartbeat` 两版都是 `{}`，`Reset` 都是 `{"type": ...}`，形状判别在这些报文上必然出错。
 
 **sans-IO。** 所有方法返回「本该发出去的字符串」，不持有 socket。测试里可以把一次完整充电跑完，CLI 里可以直接打印，将来接 WebSocket 也只是把字符串写出去。
 
@@ -78,7 +82,7 @@ cli/      命令行
 
 ```bash
 moon check --deny-warn
-moon test --deny-warn      # 61 个用例
+moon test --deny-warn      # 69 个用例
 moon fmt --check
 ```
 

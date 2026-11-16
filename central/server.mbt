@@ -1,6 +1,13 @@
-// The central system side. It answers both protocol revisions because the
-// transport does not tell it which one a station speaks: the shape of the
-// payload does. Boot, authorize and meter values each have a discriminator.
+// The central system side. The protocol revision is bound per connection when
+// the session is opened (in OCPP that binding comes from the WebSocket
+// subprotocol), never inferred from a payload: Heartbeat is {} in both
+// revisions, and several commands share a shape.
+
+///|
+pub(all) enum ProtocolVersion {
+  V16
+  V201
+} derive(Debug, Eq)
 
 ///|
 pub(all) struct StationRecord {
@@ -17,11 +24,12 @@ pub(all) struct Central {
   mut stations : Map[String, StationRecord]
   mut next_transaction : Int
   mut clock : @schema.ClockTime
+  mut next_call : Int
 }
 
 ///|
 pub fn Central::new(clock : @schema.ClockTime) -> Central {
-  { stations: Map([]), next_transaction: 0, clock, }
+  { stations: Map([]), next_transaction: 0, clock, next_call: 0, }
 }
 
 ///|
@@ -54,12 +62,16 @@ fn Central::record(self : Central, id : String) -> StationRecord {
 }
 
 ///|
-pub fn Central::handle(self : Central, text : String) -> Array[String] {
+pub fn Central::handle(
+  self : Central,
+  version : ProtocolVersion,
+  text : String,
+) -> Array[String] {
   let replies : Array[String] = []
   let frame = @wire.parse(text) catch { _ => return replies }
   match frame {
     @wire.Frame::Call(call) => {
-      let answer = self.answer(call)
+      let answer = self.answer(version, call)
       match answer {
         Some(value) => replies.push(value)
         None => ()
@@ -71,11 +83,15 @@ pub fn Central::handle(self : Central, text : String) -> Array[String] {
 }
 
 ///|
-fn Central::answer(self : Central, call : @wire.Call) -> String? {
+fn Central::answer(
+  self : Central,
+  version : ProtocolVersion,
+  call : @wire.Call,
+) -> String? {
   let payload = call.payload
   match call.action {
     "BootNotification" => {
-      let is_v2 = has_key(payload, "chargingStation")
+      let is_v2 = version == V201
       let record = self.record(station_id(payload, is_v2))
       record.boots = record.boots + 1
       let body = @schema.obj([
@@ -90,7 +106,7 @@ fn Central::answer(self : Central, call : @wire.Call) -> String? {
       Some(result_frame(call.id, body))
     }
     "Authorize" => {
-      let is_v2 = has_key(payload, "idToken")
+      let is_v2 = version == V201
       let tag = if is_v2 {
         @schema.get_string(inner(payload, "idToken"), "idToken") catch {
           _ => ""
@@ -141,7 +157,7 @@ fn Central::answer(self : Central, call : @wire.Call) -> String? {
       Some(result_frame(call.id, @schema.empty()))
     }
     "StatusNotification" => {
-      let status = if has_key(payload, "connectorStatus") {
+      let status = if version == V201 {
         @schema.get_string(payload, "connectorStatus") catch {
           _ => "Unknown"
         }
@@ -193,14 +209,6 @@ fn station_id(payload : Json, is_v2 : Bool) -> String {
 }
 
 ///|
-fn has_key(json : Json, key : String) -> Bool {
-  match json {
-    Json::Object(fields) => fields.contains(key)
-    _ => false
-  }
-}
-
-///|
 fn inner(json : Json, key : String) -> Json {
   match json {
     Json::Object(fields) =>
@@ -221,5 +229,21 @@ fn result_frame(id : String, payload : Json) -> String {
 fn error_frame(id : String, code : String, description : String) -> String {
   @wire.encode(
     @wire.Frame::Failure({ id, code, description, details: @schema.empty(), }),
+  )
+}
+
+///|
+/// Build a central-to-charge-point call for a bound 1.6J session. The caller
+/// writes the returned string to the transport; the station decodes it with the
+/// same binding and answers with the same callId.
+pub fn Central::command16(self : Central, request : @v16.Request) -> String {
+  self.next_call = self.next_call + 1
+  let id = "cs-" + self.next_call.to_string()
+  @wire.encode(
+    @wire.Frame::Call({
+      id,
+      action: request.action(),
+      payload: request.to_json(),
+    }),
   )
 }

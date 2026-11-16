@@ -242,3 +242,124 @@ test "core actions are classified and named" {
   assert_true(!from_charge_point("UnlockConnector"))
   assert_true(from_charge_point("DataTransfer"))
 }
+
+///|
+fn schedule() -> ChargingSchedule {
+  {
+    duration: Some(3600),
+    start_schedule: Some("2026-11-07T06:00:00Z"),
+    charging_rate_unit: "A",
+    charging_schedule_period: [
+      { start_period: 0, limit: 16.0, number_phases: Some(3), },
+    ],
+    min_charging_rate: None,
+  }
+}
+
+///|
+fn profile() -> ChargingProfile {
+  {
+    charging_profile_id: 1,
+    transaction_id: None,
+    stack_level: 0,
+    charging_profile_purpose: "TxDefaultProfile",
+    charging_profile_kind: "Absolute",
+    recurrency_kind: None,
+    valid_from: None,
+    valid_to: None,
+    charging_schedule: schedule(),
+  }
+}
+
+///|
+test "firmware and local list payloads round trip" {
+  let update : UpdateFirmware = {
+    location: "https://example.com/fw.bin",
+    retrieve_date: "2026-11-07T06:00:00Z",
+    retries: Some(3),
+    retry_interval: Some(30),
+  }
+  assert_eq(UpdateFirmware::from_json(update.to_json()), update)
+  let version : GetLocalListVersionResponse = { list_version: 2, }
+  assert_eq(GetLocalListVersionResponse::from_json(version.to_json()), version)
+  let send : SendLocalList = {
+    list_version: 3,
+    update_type: "Full",
+    local_authorization_list: Some([{ id_tag: "TAG-9", id_tag_info: None, }]),
+  }
+  assert_eq(SendLocalList::from_json(send.to_json()), send)
+  let sent : SendLocalListResponse = { status: "Accepted", }
+  assert_eq(SendLocalListResponse::from_json(sent.to_json()), sent)
+}
+
+///|
+test "reservation payloads round trip" {
+  let reserve : ReserveNow = {
+    connector_id: 1,
+    expiry_date: "2026-11-07T07:00:00Z",
+    id_tag: "TAG-9",
+    reservation_id: 7,
+    parent_id_tag: None,
+  }
+  assert_eq(ReserveNow::from_json(reserve.to_json()), reserve)
+  let reserved : ReserveNowResponse = { status: "Accepted", }
+  assert_eq(ReserveNowResponse::from_json(reserved.to_json()), reserved)
+  let cancel : CancelReservation = { reservation_id: 7, }
+  assert_eq(CancelReservation::from_json(cancel.to_json()), cancel)
+  let cancelled : CancelReservationResponse = { status: "Accepted", }
+  assert_eq(
+    CancelReservationResponse::from_json(cancelled.to_json()),
+    cancelled,
+  )
+}
+
+///|
+test "smart charging payloads round trip" {
+  let set : SetChargingProfile = {
+    connector_id: 1,
+    cs_charging_profiles: profile(),
+  }
+  assert_eq(SetChargingProfile::from_json(set.to_json()), set)
+  let set_response : SetChargingProfileResponse = { status: "Accepted", }
+  assert_eq(
+    SetChargingProfileResponse::from_json(set_response.to_json()),
+    set_response,
+  )
+  let clear : ClearChargingProfile = {
+    id: Some(1),
+    connector_id: Some(1),
+    charging_profile_purpose: None,
+    stack_level: None,
+  }
+  assert_eq(ClearChargingProfile::from_json(clear.to_json()), clear)
+  let clear_response : ClearChargingProfileResponse = { status: "Accepted", }
+  assert_eq(
+    ClearChargingProfileResponse::from_json(clear_response.to_json()),
+    clear_response,
+  )
+  let get : GetCompositeSchedule = {
+    connector_id: 1,
+    duration: 3600,
+    charging_rate_unit: Some("A"),
+  }
+  assert_eq(GetCompositeSchedule::from_json(get.to_json()), get)
+  let got : GetCompositeScheduleResponse = {
+    status: "Accepted",
+    schedule: Some(schedule()),
+  }
+  assert_eq(GetCompositeScheduleResponse::from_json(got.to_json()), got)
+}
+
+///|
+test "all 1.6J actions are addressable" {
+  let names = [
+    "BootNotification", "Heartbeat", "Authorize", "StartTransaction", "StopTransaction",
+    "MeterValues", "StatusNotification", "RemoteStartTransaction", "RemoteStopTransaction",
+    "ChangeConfiguration", "GetConfiguration", "RemoteTrigger", "GetDiagnostics",
+    "DiagnosticsStatusNotification", "FirmwareStatusNotification", "Reset", "ChangeAvailability",
+    "ClearCache", "DataTransfer", "UnlockConnector", "UpdateFirmware", "GetLocalListVersion",
+    "SendLocalList", "ReserveNow", "CancelReservation", "SetChargingProfile", "ClearChargingProfile",
+    "GetCompositeSchedule",
+  ]
+  assert_eq(names.length(), 28)
+}

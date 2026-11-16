@@ -24,6 +24,14 @@ pub(all) enum Request {
   ClearCache
   DataTransfer(DataTransfer)
   UnlockConnector(UnlockConnector)
+  UpdateFirmware(UpdateFirmware)
+  GetLocalListVersion
+  SendLocalList(SendLocalList)
+  ReserveNow(ReserveNow)
+  CancelReservation(CancelReservation)
+  SetChargingProfile(SetChargingProfile)
+  ClearChargingProfile(ClearChargingProfile)
+  GetCompositeSchedule(GetCompositeSchedule)
 } derive(Debug, Eq)
 
 ///|
@@ -49,6 +57,14 @@ pub fn Request::action(self : Request) -> String {
     ClearCache => "ClearCache"
     DataTransfer(_) => "DataTransfer"
     UnlockConnector(_) => "UnlockConnector"
+    UpdateFirmware(_) => "UpdateFirmware"
+    GetLocalListVersion => "GetLocalListVersion"
+    SendLocalList(_) => "SendLocalList"
+    ReserveNow(_) => "ReserveNow"
+    CancelReservation(_) => "CancelReservation"
+    SetChargingProfile(_) => "SetChargingProfile"
+    ClearChargingProfile(_) => "ClearChargingProfile"
+    GetCompositeSchedule(_) => "GetCompositeSchedule"
   }
 }
 
@@ -75,6 +91,14 @@ pub fn Request::to_json(self : Request) -> Json {
     ClearCache => @schema.obj([])
     DataTransfer(value) => value.to_json()
     UnlockConnector(value) => value.to_json()
+    UpdateFirmware(value) => value.to_json()
+    GetLocalListVersion => @schema.obj([])
+    SendLocalList(value) => value.to_json()
+    ReserveNow(value) => value.to_json()
+    CancelReservation(value) => value.to_json()
+    SetChargingProfile(value) => value.to_json()
+    ClearChargingProfile(value) => value.to_json()
+    GetCompositeSchedule(value) => value.to_json()
   }
 }
 
@@ -115,6 +139,18 @@ pub fn request_of(
     "ClearCache" => ClearCache
     "DataTransfer" => DataTransfer(DataTransfer::from_json(payload))
     "UnlockConnector" => UnlockConnector(UnlockConnector::from_json(payload))
+    "UpdateFirmware" => UpdateFirmware(UpdateFirmware::from_json(payload))
+    "GetLocalListVersion" => GetLocalListVersion
+    "SendLocalList" => SendLocalList(SendLocalList::from_json(payload))
+    "ReserveNow" => ReserveNow(ReserveNow::from_json(payload))
+    "CancelReservation" =>
+      CancelReservation(CancelReservation::from_json(payload))
+    "SetChargingProfile" =>
+      SetChargingProfile(SetChargingProfile::from_json(payload))
+    "ClearChargingProfile" =>
+      ClearChargingProfile(ClearChargingProfile::from_json(payload))
+    "GetCompositeSchedule" =>
+      GetCompositeSchedule(GetCompositeSchedule::from_json(payload))
     _ => raise @schema.UnknownCode(action)
   }
 }

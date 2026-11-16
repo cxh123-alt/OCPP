@@ -357,6 +357,61 @@ fn Session::reply_16(self : Session, call : @wire.Call) -> String? {
       let payload : @v16.UnlockConnectorResponse = { status: "Unlocked", }
       Some(result_frame(call.id, payload.to_json()))
     }
+    "UpdateFirmware" => {
+      let _request = @v16.UpdateFirmware::from_json(call.payload) catch {
+        _ => return None
+      }
+      Some(result_frame(call.id, @schema.empty()))
+    }
+    "GetLocalListVersion" => {
+      let payload : @v16.GetLocalListVersionResponse = { list_version: 1, }
+      Some(result_frame(call.id, payload.to_json()))
+    }
+    "SendLocalList" => {
+      let _request = @v16.SendLocalList::from_json(call.payload) catch {
+        _ => return None
+      }
+      let payload : @v16.SendLocalListResponse = { status: "Accepted", }
+      Some(result_frame(call.id, payload.to_json()))
+    }
+    "ReserveNow" => {
+      let _request = @v16.ReserveNow::from_json(call.payload) catch {
+        _ => return None
+      }
+      let payload : @v16.ReserveNowResponse = { status: "Accepted", }
+      Some(result_frame(call.id, payload.to_json()))
+    }
+    "CancelReservation" => {
+      let _request = @v16.CancelReservation::from_json(call.payload) catch {
+        _ => return None
+      }
+      let payload : @v16.CancelReservationResponse = { status: "Accepted", }
+      Some(result_frame(call.id, payload.to_json()))
+    }
+    "SetChargingProfile" => {
+      let _request = @v16.SetChargingProfile::from_json(call.payload) catch {
+        _ => return None
+      }
+      let payload : @v16.SetChargingProfileResponse = { status: "Accepted", }
+      Some(result_frame(call.id, payload.to_json()))
+    }
+    "ClearChargingProfile" => {
+      let _request = @v16.ClearChargingProfile::from_json(call.payload) catch {
+        _ => return None
+      }
+      let payload : @v16.ClearChargingProfileResponse = { status: "Accepted", }
+      Some(result_frame(call.id, payload.to_json()))
+    }
+    "GetCompositeSchedule" => {
+      let _request = @v16.GetCompositeSchedule::from_json(call.payload) catch {
+        _ => return None
+      }
+      let payload : @v16.GetCompositeScheduleResponse = {
+        status: "Accepted",
+        schedule: None,
+      }
+      Some(result_frame(call.id, payload.to_json()))
+    }
     "GetDiagnostics" => {
       let _request = @v16.GetDiagnostics::from_json(call.payload) catch {
         _ => return None

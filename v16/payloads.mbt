@@ -996,3 +996,576 @@ pub fn UnlockConnectorResponse::from_json(
 ) -> UnlockConnectorResponse raise @schema.SchemaError {
   { status: @schema.get_string(json, "status"), }
 }
+
+///|
+pub(all) struct UpdateFirmware {
+  location : String
+  retrieve_date : String
+  retries : Int?
+  retry_interval : Int?
+} derive(Debug, Eq)
+
+///|
+pub fn UpdateFirmware::to_json(self : UpdateFirmware) -> Json {
+  let fields : Array[(String, Json)] = [
+    ("location", @schema.text(self.location)),
+    ("retrieveDate", @schema.text(self.retrieve_date)),
+  ]
+  match self.retries {
+    Some(value) => fields.push(("retries", @schema.integer(value)))
+    None => ()
+  }
+  match self.retry_interval {
+    Some(value) => fields.push(("retryInterval", @schema.integer(value)))
+    None => ()
+  }
+  @schema.obj(fields)
+}
+
+///|
+pub fn UpdateFirmware::from_json(
+  json : Json,
+) -> UpdateFirmware raise @schema.SchemaError {
+  {
+    location: @schema.get_string(json, "location"),
+    retrieve_date: @schema.get_string(json, "retrieveDate"),
+    retries: @schema.opt_int(json, "retries"),
+    retry_interval: @schema.opt_int(json, "retryInterval"),
+  }
+}
+
+///|
+pub(all) struct GetLocalListVersionResponse {
+  list_version : Int
+} derive(Debug, Eq)
+
+///|
+pub fn GetLocalListVersionResponse::to_json(
+  self : GetLocalListVersionResponse,
+) -> Json {
+  @schema.obj([("listVersion", @schema.integer(self.list_version))])
+}
+
+///|
+pub fn GetLocalListVersionResponse::from_json(
+  json : Json,
+) -> GetLocalListVersionResponse raise @schema.SchemaError {
+  { list_version: @schema.get_int(json, "listVersion"), }
+}
+
+///|
+pub(all) struct AuthorizationData {
+  id_tag : String
+  id_tag_info : IdTagInfo?
+} derive(Debug, Eq)
+
+///|
+pub fn AuthorizationData::to_json(self : AuthorizationData) -> Json {
+  let fields : Array[(String, Json)] = [("idTag", @schema.text(self.id_tag))]
+  match self.id_tag_info {
+    Some(value) => fields.push(("idTagInfo", value.to_json()))
+    None => ()
+  }
+  @schema.obj(fields)
+}
+
+///|
+pub fn AuthorizationData::from_json(
+  json : Json,
+) -> AuthorizationData raise @schema.SchemaError {
+  {
+    id_tag: @schema.get_string(json, "idTag"),
+    id_tag_info: match opt_object(json, "idTagInfo") {
+      Some(value) => Some(IdTagInfo::from_json(value))
+      None => None
+    },
+  }
+}
+
+///|
+pub(all) struct SendLocalList {
+  list_version : Int
+  update_type : String
+  local_authorization_list : Array[AuthorizationData]?
+} derive(Debug, Eq)
+
+///|
+pub fn SendLocalList::to_json(self : SendLocalList) -> Json {
+  let fields : Array[(String, Json)] = [
+    ("listVersion", @schema.integer(self.list_version)),
+    ("updateType", @schema.text(self.update_type)),
+  ]
+  match self.local_authorization_list {
+    Some(list) =>
+      fields.push(
+        (
+          "localAuthorizationList",
+          obj_array(list.map(fn(item) { item.to_json() })),
+        ),
+      )
+    None => ()
+  }
+  @schema.obj(fields)
+}
+
+///|
+pub fn SendLocalList::from_json(
+  json : Json,
+) -> SendLocalList raise @schema.SchemaError {
+  {
+    list_version: @schema.get_int(json, "listVersion"),
+    update_type: @schema.get_string(json, "updateType"),
+    local_authorization_list: match
+      @schema.opt_array(json, "localAuthorizationList") {
+      Some(items) => Some(authorization_list(items))
+      None => None
+    },
+  }
+}
+
+///|
+pub(all) struct SendLocalListResponse {
+  status : String
+} derive(Debug, Eq)
+
+///|
+pub fn SendLocalListResponse::to_json(self : SendLocalListResponse) -> Json {
+  @schema.obj([("status", @schema.text(self.status))])
+}
+
+///|
+pub fn SendLocalListResponse::from_json(
+  json : Json,
+) -> SendLocalListResponse raise @schema.SchemaError {
+  { status: @schema.get_string(json, "status"), }
+}
+
+///|
+pub(all) struct ReserveNow {
+  connector_id : Int
+  expiry_date : String
+  id_tag : String
+  reservation_id : Int
+  parent_id_tag : String?
+} derive(Debug, Eq)
+
+///|
+pub fn ReserveNow::to_json(self : ReserveNow) -> Json {
+  let fields : Array[(String, Json)] = [
+    ("connectorId", @schema.integer(self.connector_id)),
+    ("expiryDate", @schema.text(self.expiry_date)),
+    ("idTag", @schema.text(self.id_tag)),
+    ("reservationId", @schema.integer(self.reservation_id)),
+  ]
+  match self.parent_id_tag {
+    Some(value) => fields.push(("parentIdTag", @schema.text(value)))
+    None => ()
+  }
+  @schema.obj(fields)
+}
+
+///|
+pub fn ReserveNow::from_json(
+  json : Json,
+) -> ReserveNow raise @schema.SchemaError {
+  {
+    connector_id: @schema.get_int(json, "connectorId"),
+    expiry_date: @schema.get_string(json, "expiryDate"),
+    id_tag: @schema.get_string(json, "idTag"),
+    reservation_id: @schema.get_int(json, "reservationId"),
+    parent_id_tag: @schema.opt_string(json, "parentIdTag"),
+  }
+}
+
+///|
+pub(all) struct ReserveNowResponse {
+  status : String
+} derive(Debug, Eq)
+
+///|
+pub fn ReserveNowResponse::to_json(self : ReserveNowResponse) -> Json {
+  @schema.obj([("status", @schema.text(self.status))])
+}
+
+///|
+pub fn ReserveNowResponse::from_json(
+  json : Json,
+) -> ReserveNowResponse raise @schema.SchemaError {
+  { status: @schema.get_string(json, "status"), }
+}
+
+///|
+pub(all) struct CancelReservation {
+  reservation_id : Int
+} derive(Debug, Eq)
+
+///|
+pub fn CancelReservation::to_json(self : CancelReservation) -> Json {
+  @schema.obj([("reservationId", @schema.integer(self.reservation_id))])
+}
+
+///|
+pub fn CancelReservation::from_json(
+  json : Json,
+) -> CancelReservation raise @schema.SchemaError {
+  { reservation_id: @schema.get_int(json, "reservationId"), }
+}
+
+///|
+pub(all) struct ChargingSchedulePeriod {
+  start_period : Int
+  limit : Double
+  number_phases : Int?
+} derive(Debug, Eq)
+
+///|
+pub fn ChargingSchedulePeriod::to_json(self : ChargingSchedulePeriod) -> Json {
+  let fields : Array[(String, Json)] = [
+    ("startPeriod", @schema.integer(self.start_period)),
+    ("limit", @schema.number(self.limit)),
+  ]
+  match self.number_phases {
+    Some(value) => fields.push(("numberPhases", @schema.integer(value)))
+    None => ()
+  }
+  @schema.obj(fields)
+}
+
+///|
+pub fn ChargingSchedulePeriod::from_json(
+  json : Json,
+) -> ChargingSchedulePeriod raise @schema.SchemaError {
+  {
+    start_period: @schema.get_int(json, "startPeriod"),
+    limit: @schema.get_double(json, "limit"),
+    number_phases: @schema.opt_int(json, "numberPhases"),
+  }
+}
+
+///|
+pub(all) struct ChargingSchedule {
+  duration : Int?
+  start_schedule : String?
+  charging_rate_unit : String
+  charging_schedule_period : Array[ChargingSchedulePeriod]
+  min_charging_rate : Double?
+} derive(Debug, Eq)
+
+///|
+pub fn ChargingSchedule::to_json(self : ChargingSchedule) -> Json {
+  let fields : Array[(String, Json)] = [
+    ("chargingRateUnit", @schema.text(self.charging_rate_unit)),
+    (
+      "chargingSchedulePeriod",
+      obj_array(self.charging_schedule_period.map(fn(item) { item.to_json() })),
+    ),
+  ]
+  match self.duration {
+    Some(value) => fields.push(("duration", @schema.integer(value)))
+    None => ()
+  }
+  match self.start_schedule {
+    Some(value) => fields.push(("startSchedule", @schema.text(value)))
+    None => ()
+  }
+  match self.min_charging_rate {
+    Some(value) => fields.push(("minChargingRate", @schema.number(value)))
+    None => ()
+  }
+  @schema.obj(fields)
+}
+
+///|
+pub fn ChargingSchedule::from_json(
+  json : Json,
+) -> ChargingSchedule raise @schema.SchemaError {
+  {
+    duration: @schema.opt_int(json, "duration"),
+    start_schedule: @schema.opt_string(json, "startSchedule"),
+    charging_rate_unit: @schema.get_string(json, "chargingRateUnit"),
+    charging_schedule_period: schedule_periods(
+      @schema.get_array(json, "chargingSchedulePeriod"),
+    ),
+    min_charging_rate: @schema.opt_double(json, "minChargingRate"),
+  }
+}
+
+///|
+pub(all) struct ChargingProfile {
+  charging_profile_id : Int
+  transaction_id : Int?
+  stack_level : Int
+  charging_profile_purpose : String
+  charging_profile_kind : String
+  recurrency_kind : String?
+  valid_from : String?
+  valid_to : String?
+  charging_schedule : ChargingSchedule
+} derive(Debug, Eq)
+
+///|
+pub fn ChargingProfile::to_json(self : ChargingProfile) -> Json {
+  let fields : Array[(String, Json)] = [
+    ("chargingProfileId", @schema.integer(self.charging_profile_id)),
+    ("stackLevel", @schema.integer(self.stack_level)),
+    ("chargingProfilePurpose", @schema.text(self.charging_profile_purpose)),
+    ("chargingProfileKind", @schema.text(self.charging_profile_kind)),
+    ("chargingSchedule", self.charging_schedule.to_json()),
+  ]
+  match self.transaction_id {
+    Some(value) => fields.push(("transactionId", @schema.integer(value)))
+    None => ()
+  }
+  match self.recurrency_kind {
+    Some(value) => fields.push(("recurrencyKind", @schema.text(value)))
+    None => ()
+  }
+  match self.valid_from {
+    Some(value) => fields.push(("validFrom", @schema.text(value)))
+    None => ()
+  }
+  match self.valid_to {
+    Some(value) => fields.push(("validTo", @schema.text(value)))
+    None => ()
+  }
+  @schema.obj(fields)
+}
+
+///|
+pub fn ChargingProfile::from_json(
+  json : Json,
+) -> ChargingProfile raise @schema.SchemaError {
+  {
+    charging_profile_id: @schema.get_int(json, "chargingProfileId"),
+    transaction_id: @schema.opt_int(json, "transactionId"),
+    stack_level: @schema.get_int(json, "stackLevel"),
+    charging_profile_purpose: @schema.get_string(json, "chargingProfilePurpose"),
+    charging_profile_kind: @schema.get_string(json, "chargingProfileKind"),
+    recurrency_kind: @schema.opt_string(json, "recurrencyKind"),
+    valid_from: @schema.opt_string(json, "validFrom"),
+    valid_to: @schema.opt_string(json, "validTo"),
+    charging_schedule: ChargingSchedule::from_json(
+      @schema.get_object(json, "chargingSchedule"),
+    ),
+  }
+}
+
+///|
+pub(all) struct SetChargingProfile {
+  connector_id : Int
+  cs_charging_profiles : ChargingProfile
+} derive(Debug, Eq)
+
+///|
+pub fn SetChargingProfile::to_json(self : SetChargingProfile) -> Json {
+  @schema.obj([
+    ("connectorId", @schema.integer(self.connector_id)),
+    ("csChargingProfiles", self.cs_charging_profiles.to_json()),
+  ])
+}
+
+///|
+pub fn SetChargingProfile::from_json(
+  json : Json,
+) -> SetChargingProfile raise @schema.SchemaError {
+  {
+    connector_id: @schema.get_int(json, "connectorId"),
+    cs_charging_profiles: ChargingProfile::from_json(
+      @schema.get_object(json, "csChargingProfiles"),
+    ),
+  }
+}
+
+///|
+pub(all) struct SetChargingProfileResponse {
+  status : String
+} derive(Debug, Eq)
+
+///|
+pub fn SetChargingProfileResponse::to_json(
+  self : SetChargingProfileResponse,
+) -> Json {
+  @schema.obj([("status", @schema.text(self.status))])
+}
+
+///|
+pub fn SetChargingProfileResponse::from_json(
+  json : Json,
+) -> SetChargingProfileResponse raise @schema.SchemaError {
+  { status: @schema.get_string(json, "status"), }
+}
+
+///|
+pub(all) struct ClearChargingProfile {
+  id : Int?
+  connector_id : Int?
+  charging_profile_purpose : String?
+  stack_level : Int?
+} derive(Debug, Eq)
+
+///|
+pub fn ClearChargingProfile::to_json(self : ClearChargingProfile) -> Json {
+  let fields : Array[(String, Json)] = []
+  match self.id {
+    Some(value) => fields.push(("id", @schema.integer(value)))
+    None => ()
+  }
+  match self.connector_id {
+    Some(value) => fields.push(("connectorId", @schema.integer(value)))
+    None => ()
+  }
+  match self.charging_profile_purpose {
+    Some(value) => fields.push(("chargingProfilePurpose", @schema.text(value)))
+    None => ()
+  }
+  match self.stack_level {
+    Some(value) => fields.push(("stackLevel", @schema.integer(value)))
+    None => ()
+  }
+  @schema.obj(fields)
+}
+
+///|
+pub fn ClearChargingProfile::from_json(
+  json : Json,
+) -> ClearChargingProfile raise @schema.SchemaError {
+  {
+    id: @schema.opt_int(json, "id"),
+    connector_id: @schema.opt_int(json, "connectorId"),
+    charging_profile_purpose: @schema.opt_string(json, "chargingProfilePurpose"),
+    stack_level: @schema.opt_int(json, "stackLevel"),
+  }
+}
+
+///|
+pub(all) struct ClearChargingProfileResponse {
+  status : String
+} derive(Debug, Eq)
+
+///|
+pub fn ClearChargingProfileResponse::to_json(
+  self : ClearChargingProfileResponse,
+) -> Json {
+  @schema.obj([("status", @schema.text(self.status))])
+}
+
+///|
+pub fn ClearChargingProfileResponse::from_json(
+  json : Json,
+) -> ClearChargingProfileResponse raise @schema.SchemaError {
+  { status: @schema.get_string(json, "status"), }
+}
+
+///|
+pub(all) struct GetCompositeSchedule {
+  connector_id : Int
+  duration : Int
+  charging_rate_unit : String?
+} derive(Debug, Eq)
+
+///|
+pub fn GetCompositeSchedule::to_json(self : GetCompositeSchedule) -> Json {
+  let fields : Array[(String, Json)] = [
+    ("connectorId", @schema.integer(self.connector_id)),
+    ("duration", @schema.integer(self.duration)),
+  ]
+  match self.charging_rate_unit {
+    Some(value) => fields.push(("chargingRateUnit", @schema.text(value)))
+    None => ()
+  }
+  @schema.obj(fields)
+}
+
+///|
+pub fn GetCompositeSchedule::from_json(
+  json : Json,
+) -> GetCompositeSchedule raise @schema.SchemaError {
+  {
+    connector_id: @schema.get_int(json, "connectorId"),
+    duration: @schema.get_int(json, "duration"),
+    charging_rate_unit: @schema.opt_string(json, "chargingRateUnit"),
+  }
+}
+
+///|
+pub(all) struct GetCompositeScheduleResponse {
+  status : String
+  schedule : ChargingSchedule?
+} derive(Debug, Eq)
+
+///|
+pub fn GetCompositeScheduleResponse::to_json(
+  self : GetCompositeScheduleResponse,
+) -> Json {
+  let fields : Array[(String, Json)] = [("status", @schema.text(self.status))]
+  match self.schedule {
+    Some(value) => fields.push(("schedule", value.to_json()))
+    None => ()
+  }
+  @schema.obj(fields)
+}
+
+///|
+pub fn GetCompositeScheduleResponse::from_json(
+  json : Json,
+) -> GetCompositeScheduleResponse raise @schema.SchemaError {
+  {
+    status: @schema.get_string(json, "status"),
+    schedule: match opt_object(json, "schedule") {
+      Some(value) => Some(ChargingSchedule::from_json(value))
+      None => None
+    },
+  }
+}
+
+///|
+fn obj_array(items : Array[Json]) -> Json {
+  Json::array(items)
+}
+
+///|
+fn opt_object(json : Json, key : String) -> Json? {
+  let fields = @schema.object_of(json) catch { _ => return None }
+  fields.get(key)
+}
+
+///|
+pub(all) struct CancelReservationResponse {
+  status : String
+} derive(Debug, Eq)
+
+///|
+pub fn CancelReservationResponse::to_json(
+  self : CancelReservationResponse,
+) -> Json {
+  @schema.obj([("status", @schema.text(self.status))])
+}
+
+///|
+pub fn CancelReservationResponse::from_json(
+  json : Json,
+) -> CancelReservationResponse raise @schema.SchemaError {
+  { status: @schema.get_string(json, "status"), }
+}
+
+///|
+fn authorization_list(
+  items : Array[Json],
+) -> Array[AuthorizationData] raise @schema.SchemaError {
+  let result : Array[AuthorizationData] = []
+  for item in items {
+    result.push(AuthorizationData::from_json(item))
+  }
+  result
+}
+
+///|
+fn schedule_periods(
+  items : Array[Json],
+) -> Array[ChargingSchedulePeriod] raise @schema.SchemaError {
+  let result : Array[ChargingSchedulePeriod] = []
+  for item in items {
+    result.push(ChargingSchedulePeriod::from_json(item))
+  }
+  result
+}
