@@ -13,20 +13,26 @@ cli  →  sim  →  station ─┐
 - `v16` / `v2` 是两套独立报文，因为 1.6 和 2.0.1 的字段名、嵌套方式和交易模型都不一样。
 - `station` 和 `central` 互不依赖，`sim` 是唯一同时看到两者的地方。
 
-## 为什么版本要按报文判别
+## 版本由连接绑定
 
-OCPP 的 1.6J 和 2.0.1 共用 `BootNotification`、`Authorize`、`MeterValues` 这些动作名，但报文形状不同。现场后台通常一个端口接所有桩，没有握手阶段告诉你对面是哪版。
+OCPP 在 WebSocket 握手的 `Sec-WebSocket-Protocol` 里协商版本（`ocpp1.6` / `ocpp2.0.1`）。库把这个结果作为 `ProtocolVersion` 参数传入，后台和桩各自保存，**不从报文里推断**。
 
-所以 `central` 在动作名之外看判别字段：
+原因是形状并不可靠：`Heartbeat` 两版都是 `{}`，`Reset` 都是 `{"type": ...}`，`DataTransfer` 的字段也几乎相同。只看形状会把同一份报文解成错误的版本。
 
-| 动作 | 1.6J | 2.0.1 |
-|---|---|---|
-| BootNotification | `chargePointModel` | `chargingStation` |
-| Authorize | `idTag` 字符串 | `idToken` 对象 |
-| MeterValues | `connectorId` | `evseId` |
-| StatusNotification | `status` + `errorCode` | `connectorStatus` |
+```moonbit
+central.handle(V16, text)    // 连接绑定 1.6J
+central.handle(V201, text)   // 连接绑定的实验版本
+```
 
-判别失败时按 1.6 处理并返回 CALLERROR，而不是猜。
+后台向桩下发命令时用同一个绑定：
+
+```moonbit
+let call = central.command16(@v16.Reset({ kind: @schema.Soft }))
+// 传输层写 call；桩用 V16 解码并回 CALLRESULT
+```
+
+2.0.1 的模型和代码保留在 `v2/`，但不在符合性目标内。
+
 
 ## 状态
 
