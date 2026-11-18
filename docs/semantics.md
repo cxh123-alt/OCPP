@@ -42,6 +42,8 @@ OCPP 的 28 条消息只规定报文形状，不规定业务语义。本文说�
 
 桩侧逻辑：连接器处于 `Charging`/`Preparing`/`Finishing`，或该连接器已有预约 → `Occupied`，不写入预约表。
 
+当前桩模型只建模一个连接器（`connectorId = 1`）；其他 `connectorId` 共用同一连接器状态，多连接器桩需要宿主在接入层拆分。
+
 ## Remote Trigger
 
 | 语义 | 库负责 | 宿主负责 |
