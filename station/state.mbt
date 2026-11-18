@@ -26,8 +26,8 @@ pub(all) struct ChargePoint {
   mut meter_wh : Int
   mut local_list_version : Int
   mut local_list : Array[String]
-  mut reservations : Array[(Int, String)]
-  mut charging_profile : @v16.ChargingProfile?
+  mut reservations : Array[(Int, String, Int)]
+  mut profiles : Array[(Int, @v16.ChargingProfile)]
   mut booted : Bool
 } derive(Debug, Eq)
 
@@ -45,7 +45,7 @@ pub fn ChargePoint::new(id : String, version : Version) -> ChargePoint {
     local_list_version: 0,
     local_list: [],
     reservations: [],
-    charging_profile: None,
+    profiles: [],
     booted: false,
   }
 }
@@ -116,19 +116,29 @@ pub fn ChargePoint::local_list_version(self : ChargePoint) -> Int {
 }
 
 ///|
-/// Store a reservation. Expiry is kept as the protocol string so callers can
-/// pass it through unchanged.
+/// Reserve a connector. A connector that is charging or already reserved
+/// reports Occupied instead of accepting a second reservation.
 pub fn ChargePoint::reserve(
   self : ChargePoint,
   id : Int,
   expiry : String,
-) -> Unit {
-  self.reservations.push((id, expiry))
+  connector_id : Int,
+) -> String {
+  if self.connector != @schema.ConnectorStatus::Available {
+    return "Occupied"
+  }
+  for item in self.reservations {
+    if item.2 == connector_id {
+      return "Occupied"
+    }
+  }
+  self.reservations.push((id, expiry, connector_id))
+  "Accepted"
 }
 
 ///|
 pub fn ChargePoint::cancel_reservation(self : ChargePoint, id : Int) -> Bool {
-  let kept : Array[(Int, String)] = []
+  let kept : Array[(Int, String, Int)] = []
   let mut found = false
   for item in self.reservations {
     if item.0 == id {
@@ -149,22 +159,83 @@ pub fn ChargePoint::reservation_count(self : ChargePoint) -> Int {
 ///|
 pub fn ChargePoint::set_profile(
   self : ChargePoint,
+  connector_id : Int,
   profile : @v16.ChargingProfile,
 ) -> Unit {
-  self.charging_profile = Some(profile)
+  self.profiles.push((connector_id, profile))
 }
 
 ///|
-pub fn ChargePoint::clear_profile(self : ChargePoint) -> Unit {
-  self.charging_profile = None
-}
-
-///|
-pub fn ChargePoint::profile_schedule(
+/// Remove profiles matching the optional filters. A None filter matches every
+/// profile; the return value is the number removed.
+pub fn ChargePoint::clear_profiles(
   self : ChargePoint,
+  id : Int?,
+  connector_id : Int?,
+  purpose : String?,
+  stack_level : Int?,
+) -> Int {
+  let kept : Array[(Int, @v16.ChargingProfile)] = []
+  let mut removed = 0
+  for item in self.profiles {
+    let profile = item.1
+    let mut matches = true
+    match id {
+      Some(value) => if profile.charging_profile_id != value { matches = false }
+      None => ()
+    }
+    match connector_id {
+      Some(value) => if item.0 != value { matches = false }
+      None => ()
+    }
+    match purpose {
+      Some(value) =>
+        if profile.charging_profile_purpose != value {
+          matches = false
+        }
+      None => ()
+    }
+    match stack_level {
+      Some(value) => if profile.stack_level != value { matches = false }
+      None => ()
+    }
+    if matches {
+      removed = removed + 1
+    } else {
+      kept.push(item)
+    }
+  }
+  self.profiles = kept
+  removed
+}
+
+///|
+/// The composite schedule is the highest stack level for the connector; the
+/// periods of that profile are returned unchanged. This is the documented
+/// selection rule, not a full constraint solver.
+pub fn ChargePoint::composite_schedule(
+  self : ChargePoint,
+  connector_id : Int,
 ) -> @v16.ChargingSchedule? {
-  match self.charging_profile {
+  let mut best : @v16.ChargingProfile? = None
+  for item in self.profiles {
+    if item.0 == connector_id {
+      match best {
+        None => best = Some(item.1)
+        Some(current) =>
+          if item.1.stack_level > current.stack_level {
+            best = Some(item.1)
+          }
+      }
+    }
+  }
+  match best {
     Some(profile) => Some(profile.charging_schedule)
     None => None
   }
+}
+
+///|
+pub fn ChargePoint::profile_count(self : ChargePoint) -> Int {
+  self.profiles.length()
 }

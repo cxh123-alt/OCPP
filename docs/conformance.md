@@ -1,6 +1,8 @@
 # 符合性范围与动作矩阵
 
-本项目的符合性目标是 **OCPP 1.6J 全量消息集**：Core、Firmware Management、Local Auth List Management、Reservation、Remote Trigger、Smart Charging 六个功能块，共 28 条请求/响应。
+本项目的符合性目标是 **OCPP 1.6J 28 条消息 + 明确声明的语义**：Core、Firmware Management、Local Auth List Management、Reservation、Remote Trigger、Smart Charging 六个功能块。
+
+28 条消息只规定报文形状，不规定完整业务行为。每个功能块库内做到什么、宿主必须承担什么，以及预约占用与多曲线组合的输入输出案例，见 [semantics.md](semantics.md)。
 
 2.0.1 的旧代码已归档到 `archive/ocpp-2.0.1` 分支，不在 `master` 上，也不参与验收。
 
@@ -66,7 +68,7 @@
 
 合计 16 + 4 + 2 + 2 + 1 + 3 = **28 / 28**。
 
-说明：Smart Charging 三项目前做到「保存并返回下发的曲线」，不做调度计算；Reservation 做到「登记与取消」，不做占用裁决；Local Auth List 做到「保存版本与名单」。
+语义边界见 [semantics.md](semantics.md)：Smart Charging 保存多条曲线并按最高 stackLevel 返回 composite，不做调度计算；Reservation 在连接器非 Available 或已有预约时返回 `Occupied`，不做插枪核对与超时释放；Local Auth List 保存版本与名单，不做真实鉴权。
 
 ## 版本识别
 

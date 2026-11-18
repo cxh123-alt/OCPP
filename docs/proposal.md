@@ -5,65 +5,84 @@
 
 ## 基本信息
 
-- 项目名称：OCPP 1.6J 充电协议栈（MoonBit 实现，28 条消息全量）
+- 项目名称：OCPP 1.6J 充电协议栈（MoonBit 实现，28 条消息 + 声明语义）
 - GitHub 仓库链接：https://github.com/cxh123-alt/OCPP
 - GitHub 账号：cxh123-alt（本人账号，项目主要提交者）
 - 项目方向：MoonBit 充电协议库 / 桩与后台通信基础设施
 - 是否为移植项目：否，原创项目
-- 符合性目标：OCPP 1.6J 全量 28/28
+- 符合性目标：OCPP 1.6J 28 条消息 + `docs/semantics.md` 声明的语义；不声称完整协议行为
 
 ## 项目简介
 
-OCPP 用 MoonBit 实现充电桩与运营后台之间的 1.6J 协议栈：JSON-RPC 信封、28 条消息、桩侧与后台侧状态机、传输接缝。项目面向桩固件、运营平台、边缘网关与协议测试工具，提供可直接组合的库，而不是绑定某个平台的 demo。当前版本 4019 行（含测试），58 项测试通过，GitHub Actions 每次推送执行 check、test 与 wasm 构建，当前为绿。
+OCPP 用 MoonBit 实现充电桩与运营后台之间的 1.6J 协议栈：JSON-RPC 信封、28 条消息、桩侧与后台侧状态机、传输接缝，以及预约、本地名单、充电曲线的状态语义。项目面向桩固件、运营平台、边缘网关与协议测试工具，提供可直接组合的库。当前版本 4171 行（含测试），61 项测试通过，GitHub Actions 每次推送执行 check、test 与 wasm 构建，当前为绿。
 
-## 核心功能范围
+## 六功能块的语义与宿主职责
 
-- 覆盖 OCPP 1.6J 全部六个功能块、28 条消息：Core 16 条、Firmware Management 4 条、Local Auth List 2 条、Reservation 2 条、Remote Trigger 1 条、Smart Charging 3 条；
-- 提供 JSON-RPC 的 CALL / CALLRESULT / CALLERROR 三种数组形态，按消息类型校验 arity，内置 10 个标准错误码；
-- 提供注册、鉴权、连接器、交易、充电曲线等枚举与线上字符串，秒级 UTC 时钟，带字段名的 JSON 读写；
-- 桩侧保存连接器状态、电表累计、交易号、本地授权名单、预约与下发的充电曲线，可应答的下发命令就地应答，未支持动作返回标准 CALLERROR；
-- 后台侧按连接绑定版本，登记会话、交易计数；
-- 提供传输接缝：方向信箱与 `Correlator`，保存未完成调用、按 `callId` 配对、清理超时；
-- 提供版本绑定与下发命令 API：`Central::handle(version, text)` 与 `Central::command16(request)`；
-- 提供 CLI：`demo` 打印一轮完整充电，`decode` 解释单帧，`dump` 导出会话，`soak` 批量压测；
-- 提供 58 个 MoonBit 测试与 GitHub Actions，覆盖字段名、往返、版本绑定、关联超时、预约/名单/曲线状态与 wasm 构建；
-- 提供 `docs/conformance.md` 28 条动作矩阵与 `docs/correlation.md` 关联/交易说明。
+28 条消息只规定报文形状，不规定完整业务行为。库内语义与宿主职责逐块写死：
+
+| 功能块 | 库内语义 | 宿主职责 |
+|---|---|---|
+| Core | 会话状态、交易号、计量累计、状态通知、配置读写回执 | 真实鉴权、计量表读数、配置生效、持久化 |
+| Firmware Management | 编码诊断/固件消息，保存下载地址 | 生成诊断文件、下载、校验、刷写、回滚 |
+| Local Auth List | 保存 listVersion 与名单，Full/Differential 合并 | 名单持久化、真实鉴权 |
+| Reservation | 每个连接器最多一条预约；非 Available 或已有预约返回 `Occupied`；未知 id 取消返回 `Rejected` | 插枪核对、超时释放 |
+| Remote Trigger | 编码触发并回执 | 执行实际动作 |
+| Smart Charging | 按连接器保存多条曲线；composite 取 stackLevel 最高者；按 id/connector/purpose/stack 清理 | 把限值应用到充电机，做时段插值与三相分配 |
+
+完整表格与边界见 `docs/semantics.md`。
+
+## 语义案例
+
+**连接器已占用时的预约**
+
+```json
+[2,"r1","ReserveNow",{"connectorId":1,"expiryDate":"2026-11-07T07:00:00Z","idTag":"TAG-9","reservationId":9}]
+[3,"r1",{"status":"Occupied"}]
+```
+
+桩侧在连接器为 `Charging`/`Preparing`/`Finishing`，或该连接器已有预约时返回 `Occupied`，不写入预约表。
+
+**多曲线约束**
+
+```json
+[2,"c1","SetChargingProfile",{"connectorId":1,"csChargingProfiles":{"chargingProfileId":1,"stackLevel":0,"chargingProfilePurpose":"TxDefaultProfile","chargingProfileKind":"Absolute","chargingSchedule":{"chargingRateUnit":"A","chargingSchedulePeriod":[{"startPeriod":0,"limit":16.0}]}}}]
+[3,"c1",{"status":"Accepted"}]
+[2,"c2","SetChargingProfile",{"connectorId":1,"csChargingProfiles":{"chargingProfileId":2,"stackLevel":1,"chargingProfilePurpose":"TxDefaultProfile","chargingProfileKind":"Absolute","chargingSchedule":{"chargingRateUnit":"A","chargingSchedulePeriod":[{"startPeriod":0,"limit":10.0}]}}}]
+[3,"c2",{"status":"Accepted"}]
+[2,"c3","GetCompositeSchedule",{"connectorId":1,"duration":3600}]
+[3,"c3",{"status":"Accepted","schedule":{"chargingRateUnit":"A","chargingSchedulePeriod":[{"startPeriod":0,"limit":10.0}]}}]
+```
+
+同一连接器两条曲线，stackLevel 1 覆盖 stackLevel 0，composite 返回 10.0 A；`ClearChargingProfile` 删除后 composite 为空。
 
 ## 版本识别与下发命令流程
 
 - **版本是连接属性，不是报文属性。** OCPP 在 WebSocket 握手的 `Sec-WebSocket-Protocol` 里协商 `ocpp1.6`；库把结果作为 `ProtocolVersion` 传入，后台与桩各自保存，不在报文里猜；
-- 不依赖报文形状判别：`Heartbeat` 是 `{}`，`Reset` 是 `{"type": ...}`，形状相同的报文只能由连接绑定决定解码器；
-- **下发命令（CS → CP）流程**：`Central::command16(request)` 分配 `callId`，用 1.6J 的 action 表编码成 CALL；传输层写给桩；桩用同一绑定解码，返回 CALLRESULT 或 CALLERROR 并带回同一 `callId`；后台用 `Correlator` 配对，未知、重复、过期 id 不进入业务分发；
-- 超时由调用方注入时钟，`expired` 只返回过期 id 并清理；配对失败不伪造结果。
+- 不依赖报文形状：`Heartbeat` 是 `{}`，`Reset` 是 `{"type": ...}`，形状相同的报文只能由连接绑定决定；
+- **下发命令（CS → CP）**：`Central::command16(request)` 分配 `callId`，用 1.6J action 表编码 CALL；传输层写给桩；桩用同一绑定解码并回 CALLRESULT/CALLERROR；后台用 `Correlator` 配对，未知、重复、过期 id 不进入业务分发。
 
 ## 符合性与边界
 
-- 符合性目标为 OCPP 1.6J 全量 28 条消息，矩阵见 `docs/conformance.md`；其中 Smart Charging 做到保存并返回下发的曲线，不做调度计算；预约做到登记与取消，不做占用裁决；
-- 1.6J 消息集不含证书管理；1.6 Security 扩展（证书、签名计量）不在本目标内，因此不声称安全符合性；
-- 2.0.1 的旧代码已归档到 `archive/ocpp-2.0.1` 分支，`master` 上不再包含，不参与构建与验收；
-- 传输层不实现 WebSocket 与 TLS，库只处理字符串；native 目标需要系统 C 编译器，当前环境未安装；
-- 「复用」指同一套协议层可用于桩、后台、网关与测试工具，**不声称**中断的充电会话在重连后自动恢复；断线重连与离线续传由调用方在 `Correlator` 之上实现。
+- 目标为 1.6J 28 条消息加声明语义，不声称完整协议行为；库内不计算实际功率/三相/时段插值，不做插枪核对与预约超时释放，不做名单持久化与真实鉴权，不做固件下载与刷写；
+- 1.6J 消息集不含证书管理；1.6 Security 扩展不在目标内；
+- 2.0.1 旧代码归档在 `archive/ocpp-2.0.1` 分支，`master` 不包含，不参与验收；
+- 传输层不实现 WebSocket 与 TLS；native 目标需要系统 C 编译器，当前环境未安装；
+- 「复用」指协议层可用于桩、后台、网关与测试工具，不声称断线续传。
 
 ## 材料索引
 
 | 申报内容 | 代码与文档 | 对应测试 |
 |---|---|---|
-| JSON-RPC 信封与错误码 | `wire/frame.mbt`、`wire/codes.mbt` | `wire/wire_test.mbt` |
-| 枚举、时钟、JSON 读写 | `schema/domain.mbt`、`schema/json_read.mbt`、`schema/json_write.mbt` | `schema/schema_test.mbt` |
-| 1.6J 全部 28 条消息 | `v16/actions.mbt`、`v16/payloads.mbt` | `v16/v16_test.mbt` |
-| 28 条动作矩阵 | `docs/conformance.md` | 同上 |
-| 版本绑定与下发命令 | `central/server.mbt`（`ProtocolVersion`、`command16`） | `central/central_test.mbt` |
-| 请求响应关联与超时 | `transport/pending.mbt` | `transport/transport_test.mbt` |
-| 预约/名单/曲线状态 | `station/state.mbt`、`station/session.mbt` | `station/station_test.mbt` |
-| 交易推进与两侧状态机 | `station/session.mbt`、`central/server.mbt` | `station/station_test.mbt`、`sim/sim_test.mbt` |
+| 28 条消息 | `v16/actions.mbt`、`v16/payloads.mbt` | `v16/v16_test.mbt` |
+| 六功能块语义与宿主职责 | `docs/semantics.md` | — |
+| 预约占用、多曲线组合 | `station/state.mbt` | `station/station_test.mbt` |
+| 版本绑定与下发命令 | `central/server.mbt` | `central/central_test.mbt` |
+| 关联与超时 | `transport/pending.mbt` | `transport/transport_test.mbt` |
+| 动作矩阵 | `docs/conformance.md` | 同上 |
 
 ## 原创与参考说明
 
 - 本项目为原创项目，不是移植项目，无原项目名称、来源链接与许可证需要声明；
 - 报文与字段依据 OCPP 1.6J 公开规范核对，代码为自写，不包含第三方代码；
 - 本项目许可证：MIT；
-- 与常见实现相比的设计取舍：
-  - 报文按版本分别建模，当前只交付 1.6J，2.0.1 归档在独立分支；
-  - 版本由连接绑定，按 WebSocket 子协议确定，不用报文形状推断；
-  - 核心为 sans-IO，只产出与消费字符串，时间由调用方注入；
-  - 以 28 条动作矩阵和测试固定符合性范围，不使用「全协议」这类不可验证的表述。
+- 设计取舍：版本由连接绑定而非报文形状推断；核心 sans-IO；语义范围以 `docs/semantics.md` 为准，不使用「完整协议行为」这类不可验证的表述。

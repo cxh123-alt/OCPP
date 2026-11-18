@@ -275,8 +275,12 @@ fn Session::reply(self : Session, call : @wire.Call) -> String? {
       let request = @v16.ReserveNow::from_json(call.payload) catch {
         _ => return None
       }
-      self.cp.reserve(request.reservation_id, request.expiry_date)
-      let payload : @v16.ReserveNowResponse = { status: "Accepted", }
+      let status = self.cp.reserve(
+        request.reservation_id,
+        request.expiry_date,
+        request.connector_id,
+      )
+      let payload : @v16.ReserveNowResponse = { status, }
       Some(result_frame(call.id, payload.to_json()))
     }
     "CancelReservation" => {
@@ -297,25 +301,32 @@ fn Session::reply(self : Session, call : @wire.Call) -> String? {
       let request = @v16.SetChargingProfile::from_json(call.payload) catch {
         _ => return None
       }
-      self.cp.set_profile(request.cs_charging_profiles)
+      self.cp.set_profile(request.connector_id, request.cs_charging_profiles)
       let payload : @v16.SetChargingProfileResponse = { status: "Accepted", }
       Some(result_frame(call.id, payload.to_json()))
     }
     "ClearChargingProfile" => {
-      let _request = @v16.ClearChargingProfile::from_json(call.payload) catch {
+      let request = @v16.ClearChargingProfile::from_json(call.payload) catch {
         _ => return None
       }
-      self.cp.clear_profile()
+      ignore(
+        self.cp.clear_profiles(
+          request.id,
+          request.connector_id,
+          request.charging_profile_purpose,
+          request.stack_level,
+        ),
+      )
       let payload : @v16.ClearChargingProfileResponse = { status: "Accepted", }
       Some(result_frame(call.id, payload.to_json()))
     }
     "GetCompositeSchedule" => {
-      let _request = @v16.GetCompositeSchedule::from_json(call.payload) catch {
+      let request = @v16.GetCompositeSchedule::from_json(call.payload) catch {
         _ => return None
       }
       let payload : @v16.GetCompositeScheduleResponse = {
         status: "Accepted",
-        schedule: self.cp.profile_schedule(),
+        schedule: self.cp.composite_schedule(request.connector_id),
       }
       Some(result_frame(call.id, payload.to_json()))
     }

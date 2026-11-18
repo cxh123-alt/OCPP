@@ -2,7 +2,7 @@
 
 OCPP 1.6J 的 MoonBit 实现。给充电桩和后台之间那段 WebSocket 对话一个不依赖 Node、不依赖 JVM 的库：帧、报文、状态机，都在这里。
 
-符合性目标：OCPP 1.6J 全量 28/28（Core、Firmware Management、Local Auth List、Reservation、Remote Trigger、Smart Charging）。动作矩阵见 [docs/conformance.md](docs/conformance.md)，请求响应关联与交易推进见 [docs/correlation.md](docs/correlation.md)。
+符合性目标：OCPP 1.6J 28 条消息 + [docs/semantics.md](docs/semantics.md) 声明的语义（Core、Firmware Management、Local Auth List、Reservation、Remote Trigger、Smart Charging）；不声称完整协议行为。动作矩阵见 [docs/conformance.md](docs/conformance.md)，关联与交易推进见 [docs/correlation.md](docs/correlation.md)。
 
 2.0.1 的旧代码不在 `master` 上，已归档到 `archive/ocpp-2.0.1` 分支，不参与构建与验收。
 
@@ -67,19 +67,19 @@ cli/      命令行
 
 - 没有 WebSocket 传输层；本仓库只到报文为止。
 - 1.6 Security 扩展（证书、签名计量）不在目标内。
-- Smart Charging 只保存并返回下发的曲线，不做调度计算；预约只做登记与取消，不做占用裁决。
+- Smart Charging 保存多条曲线并按最高 stackLevel 返回 composite，不做功率/三相/时段插值；预约在连接器非 Available 或已有预约时返回 Occupied，不做插枪核对与超时释放。
 - 时间来自注入的时钟，不读系统时间，便于复现。
 
 ## 验证
 
 ```bash
 moon check --deny-warn
-moon test --deny-warn      # 58 个用例
+moon test --deny-warn      # 61 个用例
 moon fmt --check
 moon build --target wasm
 ```
 
-测试覆盖信封合法性、28 条消息的字段与往返、版本绑定、关联超时、预约/名单/曲线状态与未知动作处理。
+测试覆盖信封合法性、28 条消息的字段与往返、版本绑定、关联超时、预约占用、多曲线组合、名单版本与未知动作处理。
 
 ## 许可
 
