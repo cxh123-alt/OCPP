@@ -221,7 +221,7 @@ test "composite schedule returns the stored profile" {
   )
   ignore(session.handle(set))
   assert_true(
-    session.cp.composite_schedule(1, "2026-11-07T05:00:00Z") is Some(_),
+    session.cp.composite_schedule(1, "2026-11-07T05:00:00Z", 3600) is Some(_),
   )
   let get = @wire.encode(
     @wire.Frame::Call({
@@ -235,7 +235,7 @@ test "composite schedule returns the stored profile" {
   )
   ignore(session.handle(get))
   assert_true(
-    session.cp.composite_schedule(1, "2026-11-07T05:00:00Z") is Some(_),
+    session.cp.composite_schedule(1, "2026-11-07T05:00:00Z", 3600) is Some(_),
   )
 }
 
@@ -260,13 +260,13 @@ test "higher stack level wins the composite schedule" {
   let cp = ChargePoint::new("CP-15", Version::V16)
   cp.set_profile(1, low_profile())
   cp.set_profile(1, high_profile())
-  match cp.composite_schedule(1, "2026-11-07T05:00:00Z") {
+  match cp.composite_schedule(1, "2026-11-07T05:00:00Z", 3600) {
     Some(schedule) =>
       assert_eq(schedule.charging_schedule_period[0].limit, 10.0)
     None => fail("expected a composite schedule")
   }
   assert_eq(cp.clear_profiles(None, Some(1), None, None), 2)
-  assert_true(cp.composite_schedule(1, "2026-11-07T05:00:00Z") is None)
+  assert_true(cp.composite_schedule(1, "2026-11-07T05:00:00Z", 3600) is None)
 }
 
 ///|
@@ -320,12 +320,12 @@ test "an expired high profile falls back to the lower one" {
   let cp = ChargePoint::new("CP-16", Version::V16)
   cp.set_profile(1, low_profile())
   cp.set_profile(1, expiring_high_profile())
-  match cp.composite_schedule(1, "2026-11-07T05:00:00Z") {
+  match cp.composite_schedule(1, "2026-11-07T05:00:00Z", 3600) {
     Some(schedule) =>
       assert_eq(schedule.charging_schedule_period[0].limit, 10.0)
     None => fail("expected the high profile")
   }
-  match cp.composite_schedule(1, "2026-11-07T07:00:00Z") {
+  match cp.composite_schedule(1, "2026-11-07T07:00:00Z", 3600) {
     Some(schedule) =>
       assert_eq(schedule.charging_schedule_period[0].limit, 16.0)
     None => fail("expected the lower profile after expiry")
@@ -372,5 +372,61 @@ test "clearing an absent profile reports Unknown" {
     @wire.Frame::Result(result) =>
       assert_eq(@schema.get_string(result.payload, "status"), "Unknown")
     _ => fail("expected a CALLRESULT")
+  }
+}
+
+///|
+test "composite covers the duration and falls back mid-window" {
+  let cp = ChargePoint::new("CP-18", Version::V16)
+  cp.set_profile(1, low_profile())
+  cp.set_profile(1, expiring_high_profile())
+  match cp.composite_schedule(1, "2026-11-07T05:00:00Z", 7200) {
+    Some(schedule) => {
+      assert_eq(schedule.charging_schedule_period.length(), 2)
+      assert_eq(schedule.charging_schedule_period[0].start_period, 0)
+      assert_eq(schedule.charging_schedule_period[0].limit, 10.0)
+      assert_eq(schedule.charging_schedule_period[1].start_period, 3600)
+      assert_eq(schedule.charging_schedule_period[1].limit, 16.0)
+    }
+    None => fail("expected a composite schedule")
+  }
+}
+
+///|
+test "composite keeps schedule period boundaries" {
+  let cp = ChargePoint::new("CP-19", Version::V16)
+  cp.set_profile(1, two_period_profile())
+  match cp.composite_schedule(1, "2026-11-07T05:00:00Z", 3600) {
+    Some(schedule) => {
+      assert_eq(schedule.charging_schedule_period.length(), 2)
+      assert_eq(schedule.charging_schedule_period[0].limit, 16.0)
+      assert_eq(schedule.charging_schedule_period[1].start_period, 1800)
+      assert_eq(schedule.charging_schedule_period[1].limit, 8.0)
+    }
+    None => fail("expected a composite schedule")
+  }
+}
+
+///|
+fn two_period_profile() -> @v16.ChargingProfile {
+  {
+    charging_profile_id: 4,
+    transaction_id: None,
+    stack_level: 0,
+    charging_profile_purpose: "TxDefaultProfile",
+    charging_profile_kind: "Absolute",
+    recurrency_kind: None,
+    valid_from: None,
+    valid_to: None,
+    charging_schedule: {
+      duration: Some(3600),
+      start_schedule: None,
+      charging_rate_unit: "A",
+      charging_schedule_period: [
+        { start_period: 0, limit: 16.0, number_phases: None, },
+        { start_period: 1800, limit: 8.0, number_phases: None, },
+      ],
+      min_charging_rate: None,
+    },
   }
 }

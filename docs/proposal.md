@@ -5,16 +5,16 @@
 
 ## 基本信息
 
-- 项目名称：OCPP 1.6J 充电协议栈（MoonBit 实现，28 条消息 + 声明语义）
+- 项目名称：OCPP 1.6J 充电协议栈（MoonBit 实现，六功能块完整协议语义）
 - GitHub 仓库链接：https://github.com/cxh123-alt/OCPP
 - GitHub 账号：cxh123-alt（项目账号，主要提交者）
 - 项目方向：MoonBit 充电协议库 / 桩与后台通信基础设施
 - 是否为移植项目：否，原创项目
-- 符合性目标：OCPP 1.6J 28 条消息 + `docs/semantics.md` 声明的语义；不声称完整协议行为
+- 符合性目标：OCPP 1.6J 六功能块完整协议语义（28 条消息 + `docs/semantics.md` 的状态与调度语义）；宿主只承担硬件执行、持久化与网络传输
 
 ## 项目简介
 
-OCPP 用 MoonBit 实现充电桩与运营后台之间的 1.6J 协议栈：JSON-RPC 信封、28 条消息、桩侧与后台侧状态机、传输接缝，以及预约、本地名单、充电曲线的状态语义。项目面向桩固件、运营平台、边缘网关与协议测试工具，提供可直接组合的库。当前版本 4181 行（含测试），62 项测试通过，GitHub Actions 每次推送执行 check、test 与 wasm 构建，当前为绿。
+OCPP 用 MoonBit 实现充电桩与运营后台之间的 1.6J 协议栈：JSON-RPC 信封、28 条消息、桩侧与后台侧状态机、传输接缝，以及预约、本地名单、充电曲线的状态语义。项目面向桩固件、运营平台、边缘网关与协议测试工具，提供可直接组合的库。当前版本 4471 行（含测试），64 项测试通过，GitHub Actions 每次推送执行 check、test 与 wasm 构建，当前为绿。
 
 ## 六功能块的语义与宿主职责
 
@@ -27,7 +27,7 @@ OCPP 用 MoonBit 实现充电桩与运营后台之间的 1.6J 协议栈：JSON-R
 | Local Auth List | 保存 listVersion 与名单，Full/Differential 合并 | 名单持久化、真实鉴权 |
 | Reservation | 同一连接器最多一条预约（当前桩模型只有连接器 1）；非 Available 或已有预约返回 `Occupied`；未知 id 取消返回 `Rejected` | 插枪核对、超时释放 |
 | Remote Trigger | 编码触发并回执 | 执行实际动作 |
-| Smart Charging | 按连接器保存多条曲线；composite 只在当前有效的曲线中取最高 stackLevel，高层到期后回落；按 id/connector/purpose/stack 清理 | 把限值应用到充电机，做时段插值与三相分配 |
+| Smart Charging | 按连接器保存多条曲线；composite 覆盖请求 duration，按 validFrom/validTo 与 chargingSchedulePeriod 切分，每段取当时最高 stackLevel，高层到期回落；按 id/connector/purpose/stack 清理 | 把限值应用到充电机、三相分配与功率控制 |
 
 完整表格与边界见 `docs/semantics.md`。
 
@@ -59,10 +59,12 @@ OCPP 用 MoonBit 实现充电桩与运营后台之间的 1.6J 协议栈：JSON-R
 
 高层曲线带 `validFrom`/`validTo`，低层曲线长期有效：
 
-| 当前时刻 | composite | 原因 |
+| 时间段 | composite | 原因 |
 |---|---|---|
-| 2026-11-07T05:00:00Z | limit 10.0 A | 高层 stackLevel 1 在有效期内 |
-| 2026-11-07T07:00:00Z | limit 16.0 A | 高层已过 validTo，回落到低层 stackLevel 0 |
+| 05:00–06:00 | limit 10.0 A | 高层 stackLevel 1 在有效期内 |
+| 06:00–07:00 | limit 16.0 A | 高层已过 validTo，回落到低层 stackLevel 0 |
+
+`GetCompositeSchedule` 请求 `duration = 7200`，返回两个 period：`startPeriod = 0` 的 10.0 A 与 `startPeriod = 3600` 的 16.0 A。
 
 ```json
 [2,"e2","SetChargingProfile",{"connectorId":1,"csChargingProfiles":{"chargingProfileId":3,"stackLevel":1,"chargingProfilePurpose":"TxDefaultProfile","chargingProfileKind":"Absolute","validFrom":"2026-11-07T04:00:00Z","validTo":"2026-11-07T06:00:00Z","chargingSchedule":{"chargingRateUnit":"A","chargingSchedulePeriod":[{"startPeriod":0,"limit":10.0}]}}}]
@@ -77,7 +79,7 @@ OCPP 用 MoonBit 实现充电桩与运营后台之间的 1.6J 协议栈：JSON-R
 
 ## 符合性与边界
 
-- 目标为 1.6J 28 条消息加声明语义（含曲线有效期回落），不声称完整协议行为；库内不计算实际功率/三相/时段插值，不做插枪核对与预约超时释放，不做名单持久化与真实鉴权，不做固件下载与刷写；
+- 目标为 1.6J 六功能块完整协议语义（含曲线有效期与时段回落）；库内不计算实际功率/三相，不做持久化与真实鉴权，不做插枪核对与预约超时释放，不做固件下载与刷写；
 - 1.6J 消息集不含证书管理；1.6 Security 扩展不在目标内；
 - 2.0.1 旧代码归档在 `archive/ocpp-2.0.1` 分支，`master` 不包含，不参与验收；
 - 传输层不实现 WebSocket 与 TLS；native 目标需要系统 C 工具链，未在 CI 覆盖；
@@ -99,4 +101,4 @@ OCPP 用 MoonBit 实现充电桩与运营后台之间的 1.6J 协议栈：JSON-R
 - 本项目为原创项目，不是移植项目，无原项目名称、来源链接与许可证需要声明；
 - 报文与字段依据 OCPP 1.6J 公开规范核对，代码为自写，不包含第三方代码；
 - 本项目许可证：MIT；
-- 设计取舍：版本由连接绑定而非报文形状推断；核心 sans-IO；语义范围以 `docs/semantics.md` 为准，不使用「完整协议行为」这类不可验证的表述。
+- 设计取舍：版本由连接绑定而非报文形状推断；核心 sans-IO；协议语义范围以 `docs/semantics.md` 为准，宿主边界逐块列明。

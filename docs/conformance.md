@@ -1,8 +1,8 @@
 # 符合性范围与动作矩阵
 
-本项目的符合性目标是 **OCPP 1.6J 28 条消息 + 明确声明的语义**：Core、Firmware Management、Local Auth List Management、Reservation、Remote Trigger、Smart Charging 六个功能块。
+本项目的符合性目标是 **OCPP 1.6J 六功能块完整协议语义**：28 条消息（Core、Firmware Management、Local Auth List Management、Reservation、Remote Trigger、Smart Charging）加 [semantics.md](semantics.md) 声明的状态与调度语义。
 
-28 条消息只规定报文形状，不规定完整业务行为。每个功能块库内做到什么、宿主必须承担什么，以及预约占用与多曲线组合的输入输出案例，见 [semantics.md](semantics.md)。
+消息本身只规定报文形状；每个功能块库内做到什么、宿主必须承担什么，以及预约占用、多曲线组合与到期回落的输入输出案例，见 [semantics.md](semantics.md)。
 
 2.0.1 的旧代码已归档到 `archive/ocpp-2.0.1` 分支，不在 `master` 上，也不参与验收。
 

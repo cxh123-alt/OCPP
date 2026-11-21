@@ -330,7 +330,11 @@ fn Session::reply(self : Session, call : @wire.Call) -> String? {
       }
       let payload : @v16.GetCompositeScheduleResponse = {
         status: "Accepted",
-        schedule: self.cp.composite_schedule(request.connector_id, self.now()),
+        schedule: self.cp.composite_schedule(
+          request.connector_id,
+          self.now(),
+          request.duration,
+        ),
       }
       Some(result_frame(call.id, payload.to_json()))
     }

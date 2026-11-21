@@ -55,7 +55,7 @@ OCPP 的 28 条消息只规定报文形状，不规定业务语义。本文说�
 | 语义 | 库负责 | 宿主负责 |
 |---|---|---|
 | 曲线存储 | 按连接器保存多条 ChargingProfile | 曲线持久化 |
-| 曲线组合 | 同一连接器只考虑 `validFrom`/`validTo` 覆盖当前时刻的曲线，取其中 **stackLevel 最高** 者；高层到期后自动回落到仍有效的低层 | 把限值应用到充电机、处理时段插值与三相 |
+| 曲线组合 | composite 覆盖 `GetCompositeSchedule.duration`：按 `validFrom`/`validTo` 与 `chargingSchedulePeriod.startPeriod` 切分时间段，每段取当时有效的最高 `stackLevel`；高层到期后该段自动回落到低层 | 把限值应用到充电机、三相分配与功率控制 |
 | 清理 | 按 id/connector/purpose/stackLevel 过滤删除；没有匹配项时回 `Unknown` | 重新计算实际输出 |
 
 **输入输出案例：多曲线约束**
@@ -82,14 +82,16 @@ OCPP 的 28 条消息只规定报文形状，不规定业务语义。本文说�
 [3,"e2",{"status":"Accepted"}]
 ```
 
-| 当前时刻 | composite | 原因 |
+| 时间段 | composite | 原因 |
 |---|---|---|
-| 05:00 | limit 10.0 A | 高层 stackLevel 1 在有效期内 |
-| 07:00 | limit 16.0 A | 高层已过 `validTo`，回落到低层 stackLevel 0 |
+| 05:00–06:00 | limit 10.0 A | 高层 stackLevel 1 在有效期内 |
+| 06:00–07:00 | limit 16.0 A | 高层已过 `validTo`，回落到低层 stackLevel 0 |
+
+`GetCompositeSchedule` 请求 `duration = 7200`，返回两个 period：`startPeriod = 0` 的 10.0 A 与 `startPeriod = 3600` 的 16.0 A。
 
 ## 明确不在库内的部分
 
-- 不在库内计算实际充电功率、三相分配、时段插值与同层曲线合并；
+- 不在库内计算实际充电功率、三相分配、同层曲线合并与持久化；
 - 不在库内做预约占用裁决（插枪时核对、超时释放）；
 - 不在库内做名单持久化与真实鉴权；
 - 不在库内做固件下载、校验与刷写。

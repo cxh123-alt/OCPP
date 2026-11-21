@@ -2,7 +2,7 @@
 
 OCPP 1.6J 的 MoonBit 实现。给充电桩和后台之间那段 WebSocket 对话一个不依赖 Node、不依赖 JVM 的库：帧、报文、状态机，都在这里。
 
-符合性目标：OCPP 1.6J 28 条消息 + [docs/semantics.md](docs/semantics.md) 声明的语义（Core、Firmware Management、Local Auth List、Reservation、Remote Trigger、Smart Charging）；不声称完整协议行为。动作矩阵见 [docs/conformance.md](docs/conformance.md)，关联与交易推进见 [docs/correlation.md](docs/correlation.md)。
+符合性目标：OCPP 1.6J 六功能块完整协议语义（28 条消息 + [docs/semantics.md](docs/semantics.md) 的状态与调度语义：Core、Firmware Management、Local Auth List、Reservation、Remote Trigger、Smart Charging）；宿主只承担硬件执行、持久化与网络传输。动作矩阵见 [docs/conformance.md](docs/conformance.md)，关联与交易推进见 [docs/correlation.md](docs/correlation.md)。
 
 2.0.1 的旧代码不在 `master` 上，已归档到 `archive/ocpp-2.0.1` 分支，不参与构建与验收。
 
@@ -67,14 +67,14 @@ cli/      命令行
 
 - 没有 WebSocket 传输层；本仓库只到报文为止。
 - 1.6 Security 扩展（证书、签名计量）不在目标内。
-- Smart Charging 保存多条曲线，composite 只在当前有效的曲线中取最高 stackLevel，高层到期后回落到低层；不做功率/三相/时段插值。预约在连接器非 Available 或已有预约时返回 Occupied，不做插枪核对与超时释放。
+- Smart Charging 保存多条曲线，composite 覆盖请求 duration，按有效期与 chargingSchedulePeriod 切分，每段取当时最高 stackLevel，高层到期后回落；不做功率/三相计算。预约在连接器非 Available 或已有预约时返回 Occupied，不做插枪核对与超时释放。
 - 时间来自注入的时钟，不读系统时间，便于复现。
 
 ## 验证
 
 ```bash
 moon check --deny-warn
-moon test --deny-warn      # 62 个用例
+moon test --deny-warn      # 64 个用例
 moon fmt --check
 moon build --target wasm
 ```
