@@ -1,6 +1,6 @@
 name = "cxh123-alt/ocpp"
 
-version = "0.1.6"
+version = "0.1.7"
 
 readme = "README.md"
 

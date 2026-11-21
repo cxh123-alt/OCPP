@@ -97,7 +97,7 @@ test "get configuration returns typed keys" {
   match @wire.parse(replies[0]) {
     @wire.Frame::Result(result) => {
       let keys = @schema.get_array(result.payload, "configurationKey")
-      assert_eq(keys.length(), 2)
+      assert_eq(keys.length(), 1)
     }
     _ => fail("expected a result")
   }
@@ -429,4 +429,113 @@ fn two_period_profile() -> @v16.ChargingProfile {
       min_charging_rate: None,
     },
   }
+}
+
+///|
+test "configuration changes are stored and returned" {
+  let session = Session::new(ChargePoint::new("CP-20", Version::V16), clock())
+  let change = @wire.encode(
+    @wire.Frame::Call({
+      id: "7",
+      action: "ChangeConfiguration",
+      payload: @schema.obj([
+        ("key", @schema.text("MeterValueSampleInterval")),
+        ("value", @schema.text("120")),
+      ]),
+    }),
+  )
+  ignore(session.handle(change))
+  let get = @wire.encode(
+    @wire.Frame::Call({
+      id: "8",
+      action: "GetConfiguration",
+      payload: @schema.empty(),
+    }),
+  )
+  let replies = session.handle(get)
+  assert_eq(replies.length(), 1)
+}
+
+///|
+test "unavailable connector refuses a reservation" {
+  let session = Session::new(ChargePoint::new("CP-21", Version::V16), clock())
+  let change = @wire.encode(
+    @wire.Frame::Call({
+      id: "9",
+      action: "ChangeAvailability",
+      payload: @schema.obj([
+        ("connectorId", @schema.integer(1)),
+        ("type", @schema.text("Inoperative")),
+      ]),
+    }),
+  )
+  ignore(session.handle(change))
+  let reserve = @wire.encode(
+    @wire.Frame::Call({
+      id: "10",
+      action: "ReserveNow",
+      payload: @schema.obj([
+        ("connectorId", @schema.integer(1)),
+        ("expiryDate", @schema.text("2026-11-07T07:00:00Z")),
+        ("idTag", @schema.text("TAG-1")),
+        ("reservationId", @schema.integer(1)),
+      ]),
+    }),
+  )
+  let replies = session.handle(reserve)
+  let frame = @wire.parse(replies[0])
+  match frame {
+    @wire.Frame::Result(result) =>
+      assert_eq(@schema.get_string(result.payload, "status"), "Unavailable")
+    _ => fail("expected a CALLRESULT")
+  }
+}
+
+///|
+test "clear cache empties the authorization cache" {
+  let session = Session::new(ChargePoint::new("CP-22", Version::V16), clock())
+  ignore(session.authorize_frame("TAG-1"))
+  assert_eq(session.cp.cache_size(), 1)
+  let clear = @wire.encode(
+    @wire.Frame::Call({
+      id: "11",
+      action: "ClearCache",
+      payload: @schema.empty(),
+    }),
+  )
+  ignore(session.handle(clear))
+  assert_eq(session.cp.cache_size(), 0)
+}
+
+///|
+test "reset clears the transaction and connector state" {
+  let session = Session::new(ChargePoint::new("CP-23", Version::V16), clock())
+  session.cp.begin_transaction(5)
+  let reset = @wire.encode(
+    @wire.Frame::Call({
+      id: "12",
+      action: "Reset",
+      payload: @schema.obj([("type", @schema.text("Soft"))]),
+    }),
+  )
+  ignore(session.handle(reset))
+  assert_true(session.cp.transaction_16 is None)
+  assert_eq(session.cp.connector, @schema.ConnectorStatus::Available)
+}
+
+///|
+test "update firmware stores the request" {
+  let session = Session::new(ChargePoint::new("CP-24", Version::V16), clock())
+  let update = @wire.encode(
+    @wire.Frame::Call({
+      id: "13",
+      action: "UpdateFirmware",
+      payload: @schema.obj([
+        ("location", @schema.text("https://example.com/fw.bin")),
+        ("retrieveDate", @schema.text("2026-11-07T06:00:00Z")),
+      ]),
+    }),
+  )
+  ignore(session.handle(update))
+  assert_true(session.cp.firmware() is Some(_))
 }

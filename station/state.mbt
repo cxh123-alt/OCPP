@@ -28,6 +28,9 @@ pub(all) struct ChargePoint {
   mut local_list : Array[String]
   mut reservations : Array[(Int, String, Int)]
   mut profiles : Array[(Int, @v16.ChargingProfile)]
+  mut config : Array[(String, String)]
+  mut auth_cache : Array[String]
+  mut firmware : (String, String)?
   mut booted : Bool
 } derive(Debug, Eq)
 
@@ -46,6 +49,12 @@ pub fn ChargePoint::new(id : String, version : Version) -> ChargePoint {
     local_list: [],
     reservations: [],
     profiles: [],
+    config: [
+      ("WebSocketPingInterval", "60"),
+      ("MeterValueSampleInterval", "300"),
+    ],
+    auth_cache: [],
+    firmware: None,
     booted: false,
   }
 }
@@ -124,8 +133,11 @@ pub fn ChargePoint::reserve(
   expiry : String,
   connector_id : Int,
 ) -> String {
-  if self.connector != @schema.ConnectorStatus::Available {
-    return "Occupied"
+  match self.connector {
+    @schema.ConnectorStatus::Available => ()
+    @schema.ConnectorStatus::Unavailable => return "Unavailable"
+    @schema.ConnectorStatus::Faulted => return "Faulted"
+    _ => return "Occupied"
   }
   for item in self.reservations {
     if item.2 == connector_id {
@@ -491,4 +503,90 @@ fn days_from_civil(year : Int, month : Int, day : Int) -> Int {
 ///|
 pub fn ChargePoint::profile_count(self : ChargePoint) -> Int {
   self.profiles.length()
+}
+
+///|
+/// Apply a configuration change. Unknown keys are refused with the OCPP status
+/// code rather than being stored silently.
+pub fn ChargePoint::set_config(
+  self : ChargePoint,
+  key : String,
+  value : String,
+) -> String {
+  let writable = key == "WebSocketPingInterval" ||
+    key == "MeterValueSampleInterval"
+  if !writable {
+    return "NotSupported"
+  }
+  let next : Array[(String, String)] = []
+  for item in self.config {
+    if item.0 == key {
+      next.push((key, value))
+    } else {
+      next.push(item)
+    }
+  }
+  self.config = next
+  "Accepted"
+}
+
+///|
+pub fn ChargePoint::config(self : ChargePoint) -> Array[(String, String)] {
+  self.config
+}
+
+///|
+/// Clear the authorization cache; the local list is separate and unaffected.
+pub fn ChargePoint::clear_cache(self : ChargePoint) -> Unit {
+  self.auth_cache = []
+}
+
+///|
+pub fn ChargePoint::cache_tag(self : ChargePoint, tag : String) -> Unit {
+  self.auth_cache.push(tag)
+}
+
+///|
+pub fn ChargePoint::cache_size(self : ChargePoint) -> Int {
+  self.auth_cache.length()
+}
+
+///|
+pub fn ChargePoint::set_available(self : ChargePoint, available : Bool) -> Unit {
+  if available {
+    if self.connector != @schema.ConnectorStatus::Charging {
+      self.connector = @schema.ConnectorStatus::Available
+    }
+  } else {
+    self.connector = @schema.ConnectorStatus::Unavailable
+  }
+}
+
+///|
+pub fn ChargePoint::unlock(self : ChargePoint) -> Unit {
+  if self.connector != @schema.ConnectorStatus::Available {
+    self.connector = @schema.ConnectorStatus::Available
+    self.transaction_16 = None
+  }
+}
+
+///|
+pub fn ChargePoint::reset(self : ChargePoint) -> Unit {
+  self.transaction_16 = None
+  self.connector = @schema.ConnectorStatus::Available
+  self.booted = false
+}
+
+///|
+pub fn ChargePoint::store_firmware(
+  self : ChargePoint,
+  location : String,
+  date : String,
+) -> Unit {
+  self.firmware = Some((location, date))
+}
+
+///|
+pub fn ChargePoint::firmware(self : ChargePoint) -> (String, String)? {
+  self.firmware
 }

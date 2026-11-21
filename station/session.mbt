@@ -42,6 +42,7 @@ pub fn Session::heartbeat_frame(self : Session) -> String {
 
 ///|
 pub fn Session::authorize_frame(self : Session, tag : String) -> String {
+  self.cp.cache_tag(tag)
   call_frame16(self, @v16.Request::Authorize({ id_tag: tag, }))
 }
 
@@ -174,35 +175,57 @@ fn Session::reply(self : Session, call : @wire.Call) -> String? {
       Some(result_frame(call.id, accepted.to_json()))
     }
     "Reset" => {
+      self.cp.reset()
       let payload : @v16.RequestStatusResponse = {
         status: @schema.RequestStatus::Accepted,
       }
       Some(result_frame(call.id, payload.to_json()))
     }
     "ChangeConfiguration" => {
-      let _request = @v16.ChangeConfiguration::from_json(call.payload) catch {
+      let request = @v16.ChangeConfiguration::from_json(call.payload) catch {
         _ => return None
       }
-      let payload : @v16.ChangeConfigurationResponse = {
-        status: @schema.ConfigurationStatus::Accepted,
+      let status = match self.cp.set_config(request.key, request.value) {
+        "Accepted" => @schema.ConfigurationStatus::Accepted
+        "NotSupported" => @schema.ConfigurationStatus::NotSupported
+        _ => @schema.ConfigurationStatus::Rejected
       }
+      let payload : @v16.ChangeConfigurationResponse = { status, }
       Some(result_frame(call.id, payload.to_json()))
     }
     "GetConfiguration" => {
+      let request = @v16.GetConfiguration::from_json(call.payload) catch {
+        _ => return None
+      }
+      let all = self.cp.config()
+      let keys : Array[@v16.ConfigurationKey] = []
+      let unknown : Array[String] = []
+      match request.keys {
+        Some(wanted) =>
+          for key in wanted {
+            let mut found = false
+            for item in all {
+              if item.0 == key {
+                found = true
+                keys.push({ key, is_readonly: false, value: Some(item.1), })
+              }
+            }
+            if !found {
+              unknown.push(key)
+            }
+          }
+        None =>
+          for item in all {
+            keys.push({ key: item.0, is_readonly: false, value: Some(item.1), })
+          }
+      }
       let payload : @v16.GetConfigurationResponse = {
-        configuration_key: [
-          {
-            key: "WebSocketPingInterval",
-            is_readonly: false,
-            value: Some("60"),
-          },
-          {
-            key: "MeterValueSampleInterval",
-            is_readonly: false,
-            value: Some("300"),
-          },
-        ],
-        unknown_key: None,
+        configuration_key: keys,
+        unknown_key: if unknown.length() > 0 {
+          Some(unknown)
+        } else {
+          None
+        },
       }
       Some(result_frame(call.id, payload.to_json()))
     }
@@ -216,13 +239,15 @@ fn Session::reply(self : Session, call : @wire.Call) -> String? {
       Some(result_frame(call.id, payload.to_json()))
     }
     "ChangeAvailability" => {
-      let _request = @v16.ChangeAvailability::from_json(call.payload) catch {
+      let request = @v16.ChangeAvailability::from_json(call.payload) catch {
         _ => return None
       }
+      self.cp.set_available(request.kind == "Operative")
       let payload : @v16.ChangeAvailabilityResponse = { status: "Accepted", }
       Some(result_frame(call.id, payload.to_json()))
     }
     "ClearCache" => {
+      self.cp.clear_cache()
       let payload : @v16.ClearCacheResponse = { status: "Accepted", }
       Some(result_frame(call.id, payload.to_json()))
     }
@@ -240,13 +265,15 @@ fn Session::reply(self : Session, call : @wire.Call) -> String? {
       let _request = @v16.UnlockConnector::from_json(call.payload) catch {
         _ => return None
       }
+      self.cp.unlock()
       let payload : @v16.UnlockConnectorResponse = { status: "Unlocked", }
       Some(result_frame(call.id, payload.to_json()))
     }
     "UpdateFirmware" => {
-      let _request = @v16.UpdateFirmware::from_json(call.payload) catch {
+      let request = @v16.UpdateFirmware::from_json(call.payload) catch {
         _ => return None
       }
+      self.cp.store_firmware(request.location, request.retrieve_date)
       Some(result_frame(call.id, @schema.empty()))
     }
     "GetLocalListVersion" => {
