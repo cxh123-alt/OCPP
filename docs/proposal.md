@@ -14,7 +14,7 @@
 
 ## 项目简介
 
-OCPP 用 MoonBit 实现充电桩与运营后台之间的 1.6J 协议栈：JSON-RPC 信封、28 条消息、桩侧与后台侧状态机、传输接缝，以及预约、本地名单、充电曲线的状态语义。项目面向桩固件、运营平台、边缘网关与协议测试工具，提供可直接组合的库。当前版本 4171 行（含测试），61 项测试通过，GitHub Actions 每次推送执行 check、test 与 wasm 构建，当前为绿。
+OCPP 用 MoonBit 实现充电桩与运营后台之间的 1.6J 协议栈：JSON-RPC 信封、28 条消息、桩侧与后台侧状态机、传输接缝，以及预约、本地名单、充电曲线的状态语义。项目面向桩固件、运营平台、边缘网关与协议测试工具，提供可直接组合的库。当前版本 4227 行（含测试），62 项测试通过，GitHub Actions 每次推送执行 check、test 与 wasm 构建，当前为绿。
 
 ## 六功能块的语义与宿主职责
 
@@ -27,7 +27,7 @@ OCPP 用 MoonBit 实现充电桩与运营后台之间的 1.6J 协议栈：JSON-R
 | Local Auth List | 保存 listVersion 与名单，Full/Differential 合并 | 名单持久化、真实鉴权 |
 | Reservation | 每个连接器最多一条预约；非 Available 或已有预约返回 `Occupied`；未知 id 取消返回 `Rejected` | 插枪核对、超时释放 |
 | Remote Trigger | 编码触发并回执 | 执行实际动作 |
-| Smart Charging | 按连接器保存多条曲线；composite 取 stackLevel 最高者；按 id/connector/purpose/stack 清理 | 把限值应用到充电机，做时段插值与三相分配 |
+| Smart Charging | 按连接器保存多条曲线；composite 只在当前有效的曲线中取最高 stackLevel，高层到期后回落；按 id/connector/purpose/stack 清理 | 把限值应用到充电机，做时段插值与三相分配 |
 
 完整表格与边界见 `docs/semantics.md`。
 
@@ -55,6 +55,20 @@ OCPP 用 MoonBit 实现充电桩与运营后台之间的 1.6J 协议栈：JSON-R
 
 同一连接器两条曲线，stackLevel 1 覆盖 stackLevel 0，composite 返回 10.0 A；`ClearChargingProfile` 删除后 composite 为空。
 
+**高层到期回落**
+
+高层曲线带 `validFrom`/`validTo`，低层曲线长期有效：
+
+| 当前时刻 | composite | 原因 |
+|---|---|---|
+| 2026-11-07T05:00:00Z | limit 10.0 A | 高层 stackLevel 1 在有效期内 |
+| 2026-11-07T07:00:00Z | limit 16.0 A | 高层已过 validTo，回落到低层 stackLevel 0 |
+
+```json
+[2,"e2","SetChargingProfile",{"connectorId":1,"csChargingProfiles":{"chargingProfileId":3,"stackLevel":1,"chargingProfilePurpose":"TxDefaultProfile","chargingProfileKind":"Absolute","validFrom":"2026-11-07T04:00:00Z","validTo":"2026-11-07T06:00:00Z","chargingSchedule":{"chargingRateUnit":"A","chargingSchedulePeriod":[{"startPeriod":0,"limit":10.0}]}}}]
+[3,"e2",{"status":"Accepted"}]
+```
+
 ## 版本识别与下发命令流程
 
 - **版本是连接属性，不是报文属性。** OCPP 在 WebSocket 握手的 `Sec-WebSocket-Protocol` 里协商 `ocpp1.6`；库把结果作为 `ProtocolVersion` 传入，后台与桩各自保存，不在报文里猜；
@@ -63,7 +77,7 @@ OCPP 用 MoonBit 实现充电桩与运营后台之间的 1.6J 协议栈：JSON-R
 
 ## 符合性与边界
 
-- 目标为 1.6J 28 条消息加声明语义，不声称完整协议行为；库内不计算实际功率/三相/时段插值，不做插枪核对与预约超时释放，不做名单持久化与真实鉴权，不做固件下载与刷写；
+- 目标为 1.6J 28 条消息加声明语义（含曲线有效期回落），不声称完整协议行为；库内不计算实际功率/三相/时段插值，不做插枪核对与预约超时释放，不做名单持久化与真实鉴权，不做固件下载与刷写；
 - 1.6J 消息集不含证书管理；1.6 Security 扩展不在目标内；
 - 2.0.1 旧代码归档在 `archive/ocpp-2.0.1` 分支，`master` 不包含，不参与验收；
 - 传输层不实现 WebSocket 与 TLS；native 目标需要系统 C 编译器，当前环境未安装；

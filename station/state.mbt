@@ -210,16 +210,18 @@ pub fn ChargePoint::clear_profiles(
 }
 
 ///|
-/// The composite schedule is the highest stack level for the connector; the
-/// periods of that profile are returned unchanged. This is the documented
-/// selection rule, not a full constraint solver.
+/// The composite schedule is the highest stack level among the profiles that are
+/// valid at `now`. A profile whose validTo has passed stops covering the lower
+/// stack levels, so the lower profile becomes the answer again. Periods are
+/// returned unchanged: interpolation and power limits stay with the host.
 pub fn ChargePoint::composite_schedule(
   self : ChargePoint,
   connector_id : Int,
+  now : String,
 ) -> @v16.ChargingSchedule? {
   let mut best : @v16.ChargingProfile? = None
   for item in self.profiles {
-    if item.0 == connector_id {
+    if item.0 == connector_id && profile_valid_at(item.1, now) {
       match best {
         None => best = Some(item.1)
         Some(current) =>
@@ -233,6 +235,19 @@ pub fn ChargePoint::composite_schedule(
     Some(profile) => Some(profile.charging_schedule)
     None => None
   }
+}
+
+///|
+fn profile_valid_at(profile : @v16.ChargingProfile, now : String) -> Bool {
+  let from_ok = match profile.valid_from {
+    Some(value) => value <= now
+    None => true
+  }
+  let to_ok = match profile.valid_to {
+    Some(value) => now <= value
+    None => true
+  }
+  from_ok && to_ok
 }
 
 ///|

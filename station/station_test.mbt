@@ -220,7 +220,9 @@ test "composite schedule returns the stored profile" {
     }),
   )
   ignore(session.handle(set))
-  assert_true(session.cp.composite_schedule(1) is Some(_))
+  assert_true(
+    session.cp.composite_schedule(1, "2026-11-07T05:00:00Z") is Some(_),
+  )
   let get = @wire.encode(
     @wire.Frame::Call({
       id: "5",
@@ -232,7 +234,9 @@ test "composite schedule returns the stored profile" {
     }),
   )
   ignore(session.handle(get))
-  assert_true(session.cp.composite_schedule(1) is Some(_))
+  assert_true(
+    session.cp.composite_schedule(1, "2026-11-07T05:00:00Z") is Some(_),
+  )
 }
 
 ///|
@@ -256,13 +260,13 @@ test "higher stack level wins the composite schedule" {
   let cp = ChargePoint::new("CP-15", Version::V16)
   cp.set_profile(1, low_profile())
   cp.set_profile(1, high_profile())
-  match cp.composite_schedule(1) {
+  match cp.composite_schedule(1, "2026-11-07T05:00:00Z") {
     Some(schedule) =>
       assert_eq(schedule.charging_schedule_period[0].limit, 10.0)
     None => fail("expected a composite schedule")
   }
   assert_eq(cp.clear_profiles(None, Some(1), None, None), 2)
-  assert_true(cp.composite_schedule(1) is None)
+  assert_true(cp.composite_schedule(1, "2026-11-07T05:00:00Z") is None)
 }
 
 ///|
@@ -299,6 +303,46 @@ fn high_profile() -> @v16.ChargingProfile {
     recurrency_kind: None,
     valid_from: None,
     valid_to: None,
+    charging_schedule: {
+      duration: Some(3600),
+      start_schedule: None,
+      charging_rate_unit: "A",
+      charging_schedule_period: [
+        { start_period: 0, limit: 10.0, number_phases: None, },
+      ],
+      min_charging_rate: None,
+    },
+  }
+}
+
+///|
+test "an expired high profile falls back to the lower one" {
+  let cp = ChargePoint::new("CP-16", Version::V16)
+  cp.set_profile(1, low_profile())
+  cp.set_profile(1, expiring_high_profile())
+  match cp.composite_schedule(1, "2026-11-07T05:00:00Z") {
+    Some(schedule) =>
+      assert_eq(schedule.charging_schedule_period[0].limit, 10.0)
+    None => fail("expected the high profile")
+  }
+  match cp.composite_schedule(1, "2026-11-07T07:00:00Z") {
+    Some(schedule) =>
+      assert_eq(schedule.charging_schedule_period[0].limit, 16.0)
+    None => fail("expected the lower profile after expiry")
+  }
+}
+
+///|
+fn expiring_high_profile() -> @v16.ChargingProfile {
+  {
+    charging_profile_id: 3,
+    transaction_id: None,
+    stack_level: 1,
+    charging_profile_purpose: "TxDefaultProfile",
+    charging_profile_kind: "Absolute",
+    recurrency_kind: None,
+    valid_from: Some("2026-11-07T04:00:00Z"),
+    valid_to: Some("2026-11-07T06:00:00Z"),
     charging_schedule: {
       duration: Some(3600),
       start_schedule: None,

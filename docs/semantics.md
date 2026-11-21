@@ -55,7 +55,7 @@ OCPP 的 28 条消息只规定报文形状，不规定业务语义。本文说�
 | 语义 | 库负责 | 宿主负责 |
 |---|---|---|
 | 曲线存储 | 按连接器保存多条 ChargingProfile | 曲线持久化 |
-| 曲线组合 | 同一连接器取 **stackLevel 最高** 的曲线作为 composite schedule；同层不合并 | 把限值应用到充电机、处理时段与三相 |
+| 曲线组合 | 同一连接器只考虑 `validFrom`/`validTo` 覆盖当前时刻的曲线，取其中 **stackLevel 最高** 者；高层到期后自动回落到仍有效的低层 | 把限值应用到充电机、处理时段插值与三相 |
 | 清理 | 按 id/connector/purpose/stackLevel 过滤删除 | 重新计算实际输出 |
 
 **输入输出案例：多曲线约束**
@@ -71,9 +71,25 @@ OCPP 的 28 条消息只规定报文形状，不规定业务语义。本文说�
 
 桩侧逻辑：两条曲线同一连接器，stackLevel 1 覆盖 stackLevel 0，composite 返回 10.0 A。`ClearChargingProfile` 可按 `connectorId` 或 `chargingProfileId` 删除，删除后 composite 为空。
 
+**输入输出案例：高层到期回落**
+
+高层曲线带 `validTo`，低层曲线长期有效：
+
+```json
+[2,"e1","SetChargingProfile",{"connectorId":1,"csChargingProfiles":{"chargingProfileId":1,"stackLevel":0,"chargingProfilePurpose":"TxDefaultProfile","chargingProfileKind":"Absolute","chargingSchedule":{"chargingRateUnit":"A","chargingSchedulePeriod":[{"startPeriod":0,"limit":16.0}]}}}]
+[3,"e1",{"status":"Accepted"}]
+[2,"e2","SetChargingProfile",{"connectorId":1,"csChargingProfiles":{"chargingProfileId":3,"stackLevel":1,"chargingProfilePurpose":"TxDefaultProfile","chargingProfileKind":"Absolute","validFrom":"2026-11-07T04:00:00Z","validTo":"2026-11-07T06:00:00Z","chargingSchedule":{"chargingRateUnit":"A","chargingSchedulePeriod":[{"startPeriod":0,"limit":10.0}]}}}]
+[3,"e2",{"status":"Accepted"}]
+```
+
+| 当前时刻 | composite | 原因 |
+|---|---|---|
+| 05:00 | limit 10.0 A | 高层 stackLevel 1 在有效期内 |
+| 07:00 | limit 16.0 A | 高层已过 `validTo`，回落到低层 stackLevel 0 |
+
 ## 明确不在库内的部分
 
-- 不在库内计算实际充电功率、三相分配、时段插值与曲线合并；
+- 不在库内计算实际充电功率、三相分配、时段插值与同层曲线合并；
 - 不在库内做预约占用裁决（插枪时核对、超时释放）；
 - 不在库内做名单持久化与真实鉴权；
 - 不在库内做固件下载、校验与刷写。

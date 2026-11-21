@@ -68,7 +68,7 @@
 
 合计 16 + 4 + 2 + 2 + 1 + 3 = **28 / 28**。
 
-语义边界见 [semantics.md](semantics.md)：Smart Charging 保存多条曲线并按最高 stackLevel 返回 composite，不做调度计算；Reservation 在连接器非 Available 或已有预约时返回 `Occupied`，不做插枪核对与超时释放；Local Auth List 保存版本与名单，不做真实鉴权。
+语义边界见 [semantics.md](semantics.md)：Smart Charging 保存多条曲线，composite 只在当前时刻有效的曲线中取最高 stackLevel，高层到期后回落到仍有效的低层，不做时段插值与功率计算；Reservation 在连接器非 Available 或已有预约时返回 `Occupied`，不做插枪核对与超时释放；Local Auth List 保存版本与名单，不做真实鉴权。
 
 ## 版本识别
 
