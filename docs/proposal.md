@@ -7,7 +7,7 @@
 
 - 项目名称：OCPP 1.6J 充电协议栈（MoonBit 实现，28 条消息 + 声明语义）
 - GitHub 仓库链接：https://github.com/cxh123-alt/OCPP
-- GitHub 账号：cxh123-alt（本人账号，项目主要提交者）
+- GitHub 账号：cxh123-alt（项目账号，主要提交者）
 - 项目方向：MoonBit 充电协议库 / 桩与后台通信基础设施
 - 是否为移植项目：否，原创项目
 - 符合性目标：OCPP 1.6J 28 条消息 + `docs/semantics.md` 声明的语义；不声称完整协议行为
@@ -25,7 +25,7 @@ OCPP 用 MoonBit 实现充电桩与运营后台之间的 1.6J 协议栈：JSON-R
 | Core | 会话状态、交易号、计量累计、状态通知、配置读写回执 | 真实鉴权、计量表读数、配置生效、持久化 |
 | Firmware Management | 编码诊断/固件消息，保存下载地址 | 生成诊断文件、下载、校验、刷写、回滚 |
 | Local Auth List | 保存 listVersion 与名单，Full/Differential 合并 | 名单持久化、真实鉴权 |
-| Reservation | 每个连接器最多一条预约；非 Available 或已有预约返回 `Occupied`；未知 id 取消返回 `Rejected` | 插枪核对、超时释放 |
+| Reservation | 同一连接器最多一条预约（当前桩模型只有连接器 1）；非 Available 或已有预约返回 `Occupied`；未知 id 取消返回 `Rejected` | 插枪核对、超时释放 |
 | Remote Trigger | 编码触发并回执 | 执行实际动作 |
 | Smart Charging | 按连接器保存多条曲线；composite 只在当前有效的曲线中取最高 stackLevel，高层到期后回落；按 id/connector/purpose/stack 清理 | 把限值应用到充电机，做时段插值与三相分配 |
 
@@ -71,7 +71,7 @@ OCPP 用 MoonBit 实现充电桩与运营后台之间的 1.6J 协议栈：JSON-R
 
 ## 版本识别与下发命令流程
 
-- **版本是连接属性，不是报文属性。** OCPP 在 WebSocket 握手的 `Sec-WebSocket-Protocol` 里协商 `ocpp1.6`；库把结果作为 `ProtocolVersion` 传入，后台与桩各自保存，不在报文里猜；
+- **版本是连接属性，不是报文属性。** 调用方在 WebSocket 握手的 `Sec-WebSocket-Protocol` 里取得 `ocpp1.6`，把结果作为 `ProtocolVersion` 传入；本库不实现 WebSocket，后台与桩各自保存绑定；
 - 不依赖报文形状：`Heartbeat` 是 `{}`，`Reset` 是 `{"type": ...}`，形状相同的报文只能由连接绑定决定；
 - **下发命令（CS → CP）**：`Central::command16(request)` 分配 `callId`，用 1.6J action 表编码 CALL；传输层写给桩；桩用同一绑定解码并回 CALLRESULT/CALLERROR；后台用 `Correlator` 配对，未知、重复、过期 id 不进入业务分发。
 
@@ -80,7 +80,7 @@ OCPP 用 MoonBit 实现充电桩与运营后台之间的 1.6J 协议栈：JSON-R
 - 目标为 1.6J 28 条消息加声明语义（含曲线有效期回落），不声称完整协议行为；库内不计算实际功率/三相/时段插值，不做插枪核对与预约超时释放，不做名单持久化与真实鉴权，不做固件下载与刷写；
 - 1.6J 消息集不含证书管理；1.6 Security 扩展不在目标内；
 - 2.0.1 旧代码归档在 `archive/ocpp-2.0.1` 分支，`master` 不包含，不参与验收；
-- 传输层不实现 WebSocket 与 TLS；native 目标需要系统 C 编译器，当前环境未安装；
+- 传输层不实现 WebSocket 与 TLS；native 目标需要系统 C 工具链，未在 CI 覆盖；
 - 「复用」指协议层可用于桩、后台、网关与测试工具，不声称断线续传。
 
 ## 材料索引
