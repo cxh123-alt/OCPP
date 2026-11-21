@@ -52,7 +52,7 @@ def colour_for(line: str) -> tuple[int, int, int]:
         return REPLY
     if stripped.startswith("OCPP "):
         return HEADER
-    if stripped.startswith(("exchanges=", "sessions=", "1.6J", "2.0.1")):
+    if stripped.startswith(("exchanges=", "sessions=", "1.6J")):
         return MUTED
     return TEXT
 

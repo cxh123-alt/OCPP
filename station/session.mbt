@@ -309,15 +309,19 @@ fn Session::reply(self : Session, call : @wire.Call) -> String? {
       let request = @v16.ClearChargingProfile::from_json(call.payload) catch {
         _ => return None
       }
-      ignore(
-        self.cp.clear_profiles(
-          request.id,
-          request.connector_id,
-          request.charging_profile_purpose,
-          request.stack_level,
-        ),
+      let removed = self.cp.clear_profiles(
+        request.id,
+        request.connector_id,
+        request.charging_profile_purpose,
+        request.stack_level,
       )
-      let payload : @v16.ClearChargingProfileResponse = { status: "Accepted", }
+      let payload : @v16.ClearChargingProfileResponse = {
+        status: if removed > 0 {
+          "Accepted"
+        } else {
+          "Unknown"
+        },
+      }
       Some(result_frame(call.id, payload.to_json()))
     }
     "GetCompositeSchedule" => {

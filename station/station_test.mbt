@@ -354,3 +354,23 @@ fn expiring_high_profile() -> @v16.ChargingProfile {
     },
   }
 }
+
+///|
+test "clearing an absent profile reports Unknown" {
+  let session = Session::new(ChargePoint::new("CP-17", Version::V16), clock())
+  let clear = @wire.encode(
+    @wire.Frame::Call({
+      id: "6",
+      action: "ClearChargingProfile",
+      payload: @schema.obj([("connectorId", @schema.integer(1))]),
+    }),
+  )
+  let replies = session.handle(clear)
+  assert_eq(replies.length(), 1)
+  let frame = @wire.parse(replies[0])
+  match frame {
+    @wire.Frame::Result(result) =>
+      assert_eq(@schema.get_string(result.payload, "status"), "Unknown")
+    _ => fail("expected a CALLRESULT")
+  }
+}

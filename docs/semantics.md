@@ -56,7 +56,7 @@ OCPP 的 28 条消息只规定报文形状，不规定业务语义。本文说�
 |---|---|---|
 | 曲线存储 | 按连接器保存多条 ChargingProfile | 曲线持久化 |
 | 曲线组合 | 同一连接器只考虑 `validFrom`/`validTo` 覆盖当前时刻的曲线，取其中 **stackLevel 最高** 者；高层到期后自动回落到仍有效的低层 | 把限值应用到充电机、处理时段插值与三相 |
-| 清理 | 按 id/connector/purpose/stackLevel 过滤删除 | 重新计算实际输出 |
+| 清理 | 按 id/connector/purpose/stackLevel 过滤删除；没有匹配项时回 `Unknown` | 重新计算实际输出 |
 
 **输入输出案例：多曲线约束**
 

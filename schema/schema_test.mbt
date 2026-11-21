@@ -62,18 +62,6 @@ test "advancing a clock wraps within the day" {
 }
 
 ///|
-test "charging station keeps optional identity" {
-  let station : ChargingStation = {
-    model: "AC-7",
-    vendor: "MoonCharge",
-    serial_number: Some("SN-1"),
-    firmware_version: None,
-  }
-  let back = ChargingStation::from_json(station.to_json())
-  assert_eq(back, station)
-}
-
-///|
 test "status codes survive a trip through text" {
   assert_eq(registration_status("Pending"), Some(RegistrationStatus::Pending))
   assert_eq(RegistrationStatus::Pending.code(), "Pending")

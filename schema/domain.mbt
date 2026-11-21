@@ -1,6 +1,6 @@
-// Values shared by both protocol versions. Where 1.6 and 2.0.1 disagree the
-// code uses two types rather than one type with a version flag, because the
-// wire names differ and a silent mismatch is the usual source of bugs.
+// Values shared by the 1.6J protocol. The library keeps the wire names of one
+// revision instead of one type with a version flag, because a silent mismatch
+// is the usual source of bugs.
 
 ///|
 pub(all) enum RegistrationStatus {
@@ -105,32 +105,6 @@ pub fn connector_status(text : String) -> ConnectorStatus? {
 }
 
 ///|
-pub(all) enum TransactionEventKind {
-  Started
-  Updated
-  Ended
-} derive(Debug, Eq)
-
-///|
-pub fn TransactionEventKind::code(self : TransactionEventKind) -> String {
-  match self {
-    Started => "Started"
-    Updated => "Updated"
-    Ended => "Ended"
-  }
-}
-
-///|
-pub fn transaction_event_kind(text : String) -> TransactionEventKind? {
-  match text {
-    "Started" => Some(Started)
-    "Updated" => Some(Updated)
-    "Ended" => Some(Ended)
-    _ => None
-  }
-}
-
-///|
 pub(all) enum ResetKind {
   Soft
   Hard
@@ -173,44 +147,6 @@ pub fn request_status(text : String) -> RequestStatus? {
     "Accepted" => Some(Accepted)
     "Rejected" => Some(Rejected)
     _ => None
-  }
-}
-
-///|
-/// The 2.0.1 `chargingStation` object.
-pub(all) struct ChargingStation {
-  model : String
-  vendor : String
-  serial_number : String?
-  firmware_version : String?
-} derive(Debug, Eq)
-
-///|
-pub fn ChargingStation::to_json(self : ChargingStation) -> Json {
-  let fields : Array[(String, Json)] = [
-    ("model", text(self.model)),
-    ("vendor", text(self.vendor)),
-  ]
-  match self.serial_number {
-    Some(value) => fields.push(("serialNumber", text(value)))
-    None => ()
-  }
-  match self.firmware_version {
-    Some(value) => fields.push(("firmwareVersion", text(value)))
-    None => ()
-  }
-  obj(fields)
-}
-
-///|
-pub fn ChargingStation::from_json(
-  json : Json,
-) -> ChargingStation raise SchemaError {
-  {
-    model: get_string(json, "model"),
-    vendor: get_string(json, "vendor"),
-    serial_number: opt_string(json, "serialNumber"),
-    firmware_version: opt_string(json, "firmwareVersion"),
   }
 }
 

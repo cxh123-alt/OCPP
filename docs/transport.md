@@ -24,15 +24,15 @@ while true {
 
 ## 和真实 WebSocket 对接
 
-1. 握手阶段协商子协议：1.6J 用 `ocpp1.6`，2.0.1 用 `ocpp2.0.1`。
-2. 文本帧原样交给 `Mailbox::post`，二进制帧忽略。
-3. `Mailbox::take` 的返回值直接 `send_text` 回去。
-4. 断线重连后，OCPP 1.6 需要重新 `BootNotification`；2.0.1 还需要重放未确认的 `TransactionEvent`（本库只负责生成，重放策略由调用方决定）。
+1. 握手阶段协商子协议：本库只交付 1.6J，使用 `ocpp1.6`；
+2. 文本帧原样交给 `Mailbox::post`，二进制帧忽略；
+3. `Mailbox::take` 的返回值直接 `send_text` 回去；
+4. 断线重连后，1.6J 需要重新 `BootNotification`；未确认请求的重发与离线续传由调用方在 `Correlator` 之上实现。
 
-## 为什么不用 trait
+## 为什么不写 trait
 
 `Channel` 这样的 trait 会把异步、生命周期、错误处理都带进来，而这一层真正需要的只是「先进先出」。`Mailbox` 小到可以复制进任何运行时，也便于测试里故意丢帧、乱序。
 
 ## 测试里的用法
 
-`transport_test.mbt` 用两个信箱验证 FIFO 和 `relay`；`sim` 则直接调用两侧状态机，不经过信箱，因为它在同一个进程里同步执行。
+`transport_test.mbt` 用两个信箱验证 FIFO 和 `relay`；`sim` 则直接调用两侧状态机，不经过信箱，因为它在同一进程里同步执行。

@@ -1,6 +1,6 @@
 name = "cxh123-alt/ocpp"
 
-version = "0.1.0"
+version = "0.1.5"
 
 readme = "README.md"
 
@@ -10,6 +10,6 @@ license = "MIT"
 
 keywords = [ "ocpp", "ev-charging", "json-rpc", "protocol", "moonbit" ]
 
-description = "OCPP 1.6J and 2.0.1 for MoonBit: JSON-RPC envelope, typed payloads, charge point and central system state."
+description = "OCPP 1.6J for MoonBit: JSON-RPC envelope, 28 messages, charge point and central system state."
 
 preferred_target = "wasm"
