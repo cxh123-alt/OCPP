@@ -24,14 +24,14 @@ OCPP 的 28 条消息只规定报文形状，不规定业务语义。本文说�
 
 | 语义 | 库负责 | 宿主负责 |
 |---|---|---|
-| 名单同步 | 保存 listVersion、Full/Differential 合并、回执 | 名单持久化与鉴权决策 |
+| 名单同步 | Full 替换名单；Differential 按 idTag 增删；版本不大于当前时回 `VersionMismatch` | 名单持久化与鉴权决策 |
 | 版本查询 | 返回当前 listVersion | — |
 
 ## Reservation
 
 | 语义 | 库负责 | 宿主负责 |
 |---|---|---|
-| 预约登记 | 同一连接器最多一条预约；连接器 `Charging`/`Preparing`/`Finishing` → `Occupied`，`Unavailable` → `Unavailable`，`Faulted` → `Faulted` | 到点释放、插枪时核对 idTag |
+| 预约登记 | 同一连接器最多一条预约；连接器 `Charging`/`Preparing`/`Finishing` → `Occupied`，`Unavailable` → `Unavailable`，`Faulted` → `Faulted`；`ReserveNow` 先清理过期预约 | 周期调用 `release_expired`、插枪时核对 idTag |
 | 取消 | 按 reservationId 删除；不存在时返回 `Rejected` | 通知用户、释放资源 |
 
 **输入输出案例：连接器已占用**
@@ -61,7 +61,7 @@ OCPP 的 28 条消息只规定报文形状，不规定业务语义。本文说�
 | 语义 | 库负责 | 宿主负责 |
 |---|---|---|
 | 曲线存储 | 按连接器与 purpose 保存多条 ChargingProfile | 曲线持久化 |
-| 跨用途组合 | 按上面 1–3 计算每段的有效限值；参与组合的曲线须使用同一 chargingRateUnit，混用单位时库不做换算 | 把限值应用到充电机、三相分配与功率控制；混用单位需先换算 |
+| 跨用途组合 | 按上面 1–3 计算每段的有效限值；A/W 混用时按桩电压换算（默认 230 V，可配置） | 把限值应用到充电机、三相分配与功率控制；按现场电压调用 set_voltage |
 | 有效期与时段 | 按上面第 4 条切段并处理到期回落 | — |
 | 清理 | 按 id/connector/purpose/stackLevel 过滤删除；没有匹配项时回 `Unknown` | 重新计算实际输出 |
 

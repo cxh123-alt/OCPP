@@ -286,22 +286,27 @@ fn Session::reply(self : Session, call : @wire.Call) -> String? {
       let request = @v16.SendLocalList::from_json(call.payload) catch {
         _ => return None
       }
-      let tags : Array[String] = []
+      let entries : Array[(String, Bool)] = []
       match request.local_authorization_list {
         Some(items) =>
           for item in items {
-            tags.push(item.id_tag)
+            entries.push((item.id_tag, item.id_tag_info is Some(_)))
           }
         None => ()
       }
-      self.cp.set_local_list(request.list_version, tags, request.update_type)
-      let payload : @v16.SendLocalListResponse = { status: "Accepted", }
+      let status = self.cp.apply_local_list(
+        request.list_version,
+        entries,
+        request.update_type,
+      )
+      let payload : @v16.SendLocalListResponse = { status, }
       Some(result_frame(call.id, payload.to_json()))
     }
     "ReserveNow" => {
       let request = @v16.ReserveNow::from_json(call.payload) catch {
         _ => return None
       }
+      ignore(self.cp.release_expired(self.now()))
       let status = self.cp.reserve(
         request.reservation_id,
         request.expiry_date,

@@ -14,7 +14,7 @@
 
 ## 项目简介
 
-OCPP 用 MoonBit 实现充电桩与运营后台之间的 1.6J 协议栈：JSON-RPC 信封、28 条消息、桩侧与后台侧状态机、传输接缝，以及预约、本地名单、充电曲线的状态语义。项目面向桩固件、运营平台、边缘网关与协议测试工具，提供可直接组合的库。当前版本 4789 行（含测试），72 项测试通过，GitHub Actions 每次推送执行 check、test 与 wasm 构建，当前为绿。
+OCPP 用 MoonBit 实现充电桩与运营后台之间的 1.6J 协议栈：JSON-RPC 信封、28 条消息、桩侧与后台侧状态机、传输接缝，以及预约、本地名单、充电曲线的状态语义。项目面向桩固件、运营平台、边缘网关与协议测试工具，提供可直接组合的库。当前版本 4990 行（含测试），75 项测试通过，GitHub Actions 每次推送执行 check、test 与 wasm 构建，当前为绿。
 
 ## 六功能块的语义与宿主职责
 
@@ -24,8 +24,8 @@ OCPP 用 MoonBit 实现充电桩与运营后台之间的 1.6J 协议栈：JSON-R
 |---|---|---|
 | Core | 会话状态、交易号、计量累计、状态通知、配置存储与查询、清缓存、可用性/解锁/复位 | 真实鉴权、计量表读数、配置对硬件生效、持久化 |
 | Firmware Management | 编码诊断/固件消息，保存下载地址 | 生成诊断文件、下载、校验、刷写、回滚 |
-| Local Auth List | 保存 listVersion 与名单，Full/Differential 合并 | 名单持久化、真实鉴权 |
-| Reservation | 同一连接器最多一条预约（当前桩模型只有连接器 1）；非 Available 或已有预约返回 `Occupied`；未知 id 取消返回 `Rejected` | 插枪核对、超时释放 |
+| Local Auth List | Full 替换名单；Differential 按 idTag 增删；版本过期回 `VersionMismatch` | 名单持久化、真实鉴权 |
+| Reservation | 同一连接器最多一条预约（当前桩模型只有连接器 1）；非 Available 或已有预约返回 `Occupied`；未知 id 取消返回 `Rejected`；`ReserveNow` 先清理过期预约 | 周期调用 `release_expired`、插枪核对 |
 | Remote Trigger | 编码触发并回执 | 执行实际动作 |
 | Smart Charging | 按连接器与 purpose 保存多条曲线；composite 覆盖请求 duration，按 ChargePointMaxProfile 整桩上限与 TxProfile/TxDefaultProfile 交易约束取 min，再按有效期/时段切分并处理到期回落 | 把限值应用到充电机、三相分配与功率控制 |
 
@@ -60,7 +60,7 @@ OCPP 用 MoonBit 实现充电桩与运营后台之间的 1.6J 协议栈：JSON-R
 - `ChargePointMaxProfile` 存在连接器 0，是整桩上限；同一 purpose 内 `stackLevel` 高者优先；
 - `TxProfile` 覆盖 `TxDefaultProfile`，两者各自取最高 `stackLevel`；
 - 每个时间段取 `min(整桩上限, 交易约束)`，只有一侧时取该侧；
-- 库负责组合与有效期/时段切分，宿主负责把限值应用到充电机并持久化；参与组合的曲线须使用同一 chargingRateUnit，混用单位需宿主先换算。
+- 库负责组合与有效期/时段切分（A/W 混用按桩电压换算，默认 230 V），宿主负责把限值应用到充电机并持久化。
 
 **整桩上限与交易曲线冲突**
 

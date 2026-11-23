@@ -26,6 +26,7 @@ pub(all) struct ChargePoint {
   mut meter_wh : Int
   mut local_list_version : Int
   mut local_list : Array[String]
+  mut voltage : Double
   mut reservations : Array[(Int, String, Int)]
   mut profiles : Array[(Int, @v16.ChargingProfile)]
   mut config : Array[(String, String)]
@@ -47,6 +48,7 @@ pub fn ChargePoint::new(id : String, version : Version) -> ChargePoint {
     meter_wh: 0,
     local_list_version: 0,
     local_list: [],
+    voltage: 230.0,
     reservations: [],
     profiles: [],
     config: [
@@ -101,22 +103,59 @@ pub fn ChargePoint::add_energy(self : ChargePoint, wh : Int) -> Unit {
 }
 
 ///|
-/// Replace or extend the local authorization list. The returned version is the
-/// one a GetLocalListVersion call will report.
-pub fn ChargePoint::set_local_list(
+/// Apply a local list update. `Full` replaces the list, `Differential` upserts
+/// or removes entries, and a differential version that is not newer than the
+/// stored one is refused with VersionMismatch.
+pub fn ChargePoint::apply_local_list(
   self : ChargePoint,
   version : Int,
-  tags : Array[String],
+  entries : Array[(String, Bool)],
   update_type : String,
-) -> Unit {
+) -> String {
+  if update_type != "Full" && update_type != "Differential" {
+    return "NotSupported"
+  }
+  if update_type == "Differential" && version <= self.local_list_version {
+    return "VersionMismatch"
+  }
   if update_type == "Full" {
-    self.local_list = tags
+    let next : Array[String] = []
+    for entry in entries {
+      if entry.1 {
+        next.push(entry.0)
+      }
+    }
+    self.local_list = next
   } else {
-    for tag in tags {
-      self.local_list.push(tag)
+    for entry in entries {
+      if entry.1 {
+        let mut present = false
+        for tag in self.local_list {
+          if tag == entry.0 {
+            present = true
+          }
+        }
+        if !present {
+          self.local_list.push(entry.0)
+        }
+      } else {
+        let kept : Array[String] = []
+        for tag in self.local_list {
+          if tag != entry.0 {
+            kept.push(tag)
+          }
+        }
+        self.local_list = kept
+      }
     }
   }
   self.local_list_version = version
+  "Accepted"
+}
+
+///|
+pub fn ChargePoint::set_voltage(self : ChargePoint, voltage : Double) -> Unit {
+  self.voltage = voltage
 }
 
 ///|
@@ -166,6 +205,23 @@ pub fn ChargePoint::cancel_reservation(self : ChargePoint, id : Int) -> Bool {
 ///|
 pub fn ChargePoint::reservation_count(self : ChargePoint) -> Int {
   self.reservations.length()
+}
+
+///|
+/// Release reservations whose expiry is in the past. Hosts can call this on a
+/// timer; ReserveNow also calls it before accepting a new reservation.
+pub fn ChargePoint::release_expired(self : ChargePoint, now : String) -> Int {
+  let kept : Array[(Int, String, Int)] = []
+  let mut removed = 0
+  for item in self.reservations {
+    if item.1 <= now {
+      removed = removed + 1
+    } else {
+      kept.push(item)
+    }
+  }
+  self.reservations = kept
+  removed
 }
 
 ///|
@@ -291,12 +347,44 @@ pub fn ChargePoint::composite_schedule(
       None =>
         self.select_profile(connector_id, "TxDefaultProfile", at, now_epoch)
     }
+    let target_unit = match tx {
+      Some(profile) => profile.charging_schedule.charging_rate_unit
+      None =>
+        match station {
+          Some(profile) => profile.charging_schedule.charging_rate_unit
+          None => "A"
+        }
+    }
     let station_limit = match station {
-      Some(profile) => limit_at(profile, at, now_epoch)
+      Some(profile) =>
+        match limit_at(profile, at, now_epoch) {
+          Some(value) =>
+            Some(
+              convert_limit(
+                value,
+                profile.charging_schedule.charging_rate_unit,
+                target_unit,
+                self.voltage,
+              ),
+            )
+          None => None
+        }
       None => None
     }
     let tx_limit = match tx {
-      Some(profile) => limit_at(profile, at, now_epoch)
+      Some(profile) =>
+        match limit_at(profile, at, now_epoch) {
+          Some(value) =>
+            Some(
+              convert_limit(
+                value,
+                profile.charging_schedule.charging_rate_unit,
+                target_unit,
+                self.voltage,
+              ),
+            )
+          None => None
+        }
       None => None
     }
     let limit = match (station_limit, tx_limit) {
@@ -308,14 +396,7 @@ pub fn ChargePoint::composite_schedule(
     }
     match limit {
       Some(value) => {
-        let unit_profile = match tx {
-          Some(profile) => Some(profile)
-          None => station
-        }
-        match unit_profile {
-          Some(profile) => unit = profile.charging_schedule.charging_rate_unit
-          None => ()
-        }
+        unit = target_unit
         let duplicate = if periods.length() > 0 {
           periods[periods.length() - 1].limit == value
         } else {
@@ -410,6 +491,24 @@ fn profile_covers(
   }
   ignore(now_epoch)
   from_ok && to_ok && schedule_ok
+}
+
+///|
+fn convert_limit(
+  value : Double,
+  from : String,
+  to : String,
+  voltage : Double,
+) -> Double {
+  if from == to {
+    value
+  } else if from == "A" && to == "W" {
+    value * voltage
+  } else if from == "W" && to == "A" {
+    value / voltage
+  } else {
+    value
+  }
 }
 
 ///|

@@ -138,8 +138,14 @@ fn local_list_call(id : String, version : Int) -> String {
         (
           "localAuthorizationList",
           Json::array([
-            @schema.obj([("idTag", @schema.text("TAG-1"))]),
-            @schema.obj([("idTag", @schema.text("TAG-2"))]),
+            @schema.obj([
+              ("idTag", @schema.text("TAG-1")),
+              ("idTagInfo", @schema.obj([("status", @schema.text("Accepted"))])),
+            ]),
+            @schema.obj([
+              ("idTag", @schema.text("TAG-2")),
+              ("idTagInfo", @schema.obj([("status", @schema.text("Accepted"))])),
+            ]),
           ]),
         ),
       ]),
@@ -596,6 +602,105 @@ test "tx profile overrides tx default and is capped by the station" {
   match cp.composite_schedule(1, "2026-11-07T05:00:00Z", 3600) {
     Some(schedule) =>
       assert_eq(schedule.charging_schedule_period[0].limit, 12.0)
+    None => fail("expected a composite schedule")
+  }
+}
+
+///|
+fn list_frame(
+  id : String,
+  version : Int,
+  update_type : String,
+  entries : Array[Json],
+) -> String {
+  @wire.encode(
+    @wire.Frame::Call({
+      id,
+      action: "SendLocalList",
+      payload: @schema.obj([
+        ("listVersion", @schema.integer(version)),
+        ("updateType", @schema.text(update_type)),
+        ("localAuthorizationList", Json::array(entries)),
+      ]),
+    }),
+  )
+}
+
+///|
+test "differential local list upserts and removes" {
+  let session = Session::new(ChargePoint::new("CP-28", Version::V16), clock())
+  ignore(session.handle(local_list_call("20", 1)))
+  let diff = list_frame("21", 2, "Differential", [
+    @schema.obj([
+      ("idTag", @schema.text("TAG-3")),
+      ("idTagInfo", @schema.obj([("status", @schema.text("Accepted"))])),
+    ]),
+    @schema.obj([("idTag", @schema.text("TAG-1"))]),
+  ])
+  ignore(session.handle(diff))
+  assert_eq(session.cp.local_list_version(), 2)
+  assert_eq(session.cp.local_list.length(), 2)
+  let stale = list_frame("22", 2, "Differential", [
+    @schema.obj([
+      ("idTag", @schema.text("TAG-4")),
+      ("idTagInfo", @schema.obj([("status", @schema.text("Accepted"))])),
+    ]),
+  ])
+  let replies = session.handle(stale)
+  let frame = @wire.parse(replies[0])
+  match frame {
+    @wire.Frame::Result(result) =>
+      assert_eq(@schema.get_string(result.payload, "status"), "VersionMismatch")
+    _ => fail("expected a CALLRESULT")
+  }
+}
+
+///|
+test "expired reservations are released before a new one" {
+  let cp = ChargePoint::new("CP-29", Version::V16)
+  assert_eq(cp.reserve(1, "2026-11-07T05:00:00Z", 1), "Accepted")
+  assert_eq(cp.release_expired("2026-11-07T06:00:00Z"), 1)
+  assert_eq(cp.reserve(2, "2026-11-07T07:00:00Z", 1), "Accepted")
+  assert_eq(cp.reservation_count(), 1)
+}
+
+///|
+fn profile_in_unit(
+  purpose : String,
+  limit : Double,
+  unit : String,
+) -> @v16.ChargingProfile {
+  {
+    charging_profile_id: 10,
+    transaction_id: None,
+    stack_level: 0,
+    charging_profile_purpose: purpose,
+    charging_profile_kind: "Absolute",
+    recurrency_kind: None,
+    valid_from: None,
+    valid_to: None,
+    charging_schedule: {
+      duration: Some(3600),
+      start_schedule: None,
+      charging_rate_unit: unit,
+      charging_schedule_period: [
+        { start_period: 0, limit, number_phases: None, },
+      ],
+      min_charging_rate: None,
+    },
+  }
+}
+
+///|
+test "mixed units are converted through the station voltage" {
+  let cp = ChargePoint::new("CP-30", Version::V16)
+  cp.set_profile(0, profile_in_unit("ChargePointMaxProfile", 3680.0, "W"))
+  cp.set_profile(1, profile_in_unit("TxProfile", 10.0, "A"))
+  match cp.composite_schedule(1, "2026-11-07T05:00:00Z", 3600) {
+    Some(schedule) => {
+      assert_eq(schedule.charging_rate_unit, "A")
+      assert_eq(schedule.charging_schedule_period[0].limit, 10.0)
+    }
     None => fail("expected a composite schedule")
   }
 }
