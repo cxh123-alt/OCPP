@@ -130,6 +130,24 @@ pub fn Session::stop_frame(
 }
 
 ///|
+pub fn Session::firmware_status_frame(
+  self : Session,
+  status : String,
+) -> String {
+  self.cp.set_firmware_status(status)
+  call_frame16(self, @v16.Request::FirmwareStatusNotification({ status, }))
+}
+
+///|
+pub fn Session::diagnostics_status_frame(
+  self : Session,
+  status : String,
+) -> String {
+  self.cp.set_diagnostics_status(status)
+  call_frame16(self, @v16.Request::DiagnosticsStatusNotification({ status, }))
+}
+
+///|
 /// React to a central-system call. Returns the frames to send back.
 pub fn Session::handle(self : Session, text : String) -> Array[String] {
   let replies : Array[String] = []
@@ -230,9 +248,10 @@ fn Session::reply(self : Session, call : @wire.Call) -> String? {
       Some(result_frame(call.id, payload.to_json()))
     }
     "RemoteTrigger" => {
-      let _request = @v16.RemoteTrigger::from_json(call.payload) catch {
+      let request = @v16.RemoteTrigger::from_json(call.payload) catch {
         _ => return None
       }
+      self.cp.trigger(request.requested_message)
       let payload : @v16.RequestStatusResponse = {
         status: @schema.RequestStatus::Accepted,
       }
@@ -252,13 +271,11 @@ fn Session::reply(self : Session, call : @wire.Call) -> String? {
       Some(result_frame(call.id, payload.to_json()))
     }
     "DataTransfer" => {
-      let _request = @v16.DataTransfer::from_json(call.payload) catch {
+      let request = @v16.DataTransfer::from_json(call.payload) catch {
         _ => return None
       }
-      let payload : @v16.DataTransferResponse = {
-        status: "Accepted",
-        data: None,
-      }
+      let status = self.cp.data_transfer(request.vendor_id)
+      let payload : @v16.DataTransferResponse = { status, data: None, }
       Some(result_frame(call.id, payload.to_json()))
     }
     "UnlockConnector" => {

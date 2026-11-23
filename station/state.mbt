@@ -32,6 +32,10 @@ pub(all) struct ChargePoint {
   mut config : Array[(String, String)]
   mut auth_cache : Array[String]
   mut firmware : (String, String)?
+  mut firmware_status : String
+  mut diagnostics_status : String
+  mut vendors : Array[String]
+  mut last_trigger : String?
   mut booted : Bool
 } derive(Debug, Eq)
 
@@ -57,6 +61,10 @@ pub fn ChargePoint::new(id : String, version : Version) -> ChargePoint {
     ],
     auth_cache: [],
     firmware: None,
+    firmware_status: "Idle",
+    diagnostics_status: "Idle",
+    vendors: [],
+    last_trigger: None,
     booted: false,
   }
 }
@@ -732,4 +740,67 @@ pub fn ChargePoint::store_firmware(
 ///|
 pub fn ChargePoint::firmware(self : ChargePoint) -> (String, String)? {
   self.firmware
+}
+
+///|
+pub fn ChargePoint::register_vendor(
+  self : ChargePoint,
+  vendor : String,
+) -> Unit {
+  self.vendors.push(vendor)
+}
+
+///|
+/// DataTransfer is vendor-specific: only registered vendors get Accepted.
+pub fn ChargePoint::data_transfer(
+  self : ChargePoint,
+  vendor : String,
+) -> String {
+  let mut known = false
+  for item in self.vendors {
+    if item == vendor {
+      known = true
+    }
+  }
+  if known {
+    "Accepted"
+  } else {
+    "UnknownVendorId"
+  }
+}
+
+///|
+pub fn ChargePoint::set_firmware_status(
+  self : ChargePoint,
+  status : String,
+) -> Unit {
+  self.firmware_status = status
+}
+
+///|
+pub fn ChargePoint::firmware_status(self : ChargePoint) -> String {
+  self.firmware_status
+}
+
+///|
+pub fn ChargePoint::set_diagnostics_status(
+  self : ChargePoint,
+  status : String,
+) -> Unit {
+  self.diagnostics_status = status
+}
+
+///|
+pub fn ChargePoint::diagnostics_status(self : ChargePoint) -> String {
+  self.diagnostics_status
+}
+
+///|
+pub fn ChargePoint::trigger(self : ChargePoint, message : String) -> Unit {
+  self.last_trigger = Some(message)
+}
+
+///|
+pub fn ChargePoint::last_trigger(self : ChargePoint) -> String? {
+  self.last_trigger
 }

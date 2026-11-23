@@ -74,7 +74,7 @@ cli/      命令行
 
 ```bash
 moon check --deny-warn
-moon test --deny-warn      # 75 个用例
+moon test --deny-warn      # 78 个用例
 moon fmt --check
 moon build --target wasm
 ```

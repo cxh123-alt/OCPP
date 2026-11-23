@@ -10,7 +10,7 @@
 - 项目方向：MoonBit 充电协议库 / 桩与后台通信基础设施
 - 是否移植：否，原创项目
 - 符合性目标：OCPP 1.6J 28 条消息 + `docs/semantics.md` 的状态与调度语义
-- 当前规模：4990 行（含测试），75 项测试，CI 含 check / test / wasm 构建
+- 当前规模：5112 行（含测试），78 项测试，CI 含 check / test / wasm 构建
 
 ## 项目简介
 
@@ -20,11 +20,11 @@
 
 | 功能块 | 库内语义 | 宿主职责 |
 |---|---|---|
-| Core | 会话、交易号、计量、状态、配置存储与查询、清缓存、可用性/解锁/复位 | 真实鉴权、表计、配置生效、持久化 |
-| Firmware Management | 编码诊断/固件消息，保存下载地址 | 生成诊断文件、下载、校验、刷写 |
+| Core | 会话、交易号、计量、状态、配置存储与查询、清缓存、可用性/解锁/复位、厂商透传登记 | 真实鉴权、表计、配置生效、持久化 |
+| Firmware Management | 保存下载地址，维护固件/诊断状态并生成状态帧 | 生成诊断文件、下载、校验、刷写 |
 | Local Auth List | Full 替换；Differential 增删；版本过期回 `VersionMismatch` | 名单持久化、真实鉴权 |
 | Reservation | 占用/重复 → `Occupied`，`Unavailable`/`Faulted` 对应状态；`ReserveNow` 先清过期预约 | 周期调用 `release_expired`、插枪核对 |
-| Remote Trigger | 编码触发并回执 | 执行实际动作 |
+| Remote Trigger | 编码触发、记录 requestedMessage 并回执 | 执行实际动作 |
 | Smart Charging | 按 purpose 组合曲线，覆盖 duration，处理有效期、时段与到期回落 | 应用到充电机、三相/功率、持久化 |
 
 ## 跨用途曲线组合

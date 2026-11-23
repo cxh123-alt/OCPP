@@ -704,3 +704,50 @@ test "mixed units are converted through the station voltage" {
     None => fail("expected a composite schedule")
   }
 }
+
+///|
+test "data transfer only accepts registered vendors" {
+  let session = Session::new(ChargePoint::new("CP-31", Version::V16), clock())
+  let frame = @wire.encode(
+    @wire.Frame::Call({
+      id: "30",
+      action: "DataTransfer",
+      payload: @schema.obj([("vendorId", @schema.text("com.example"))]),
+    }),
+  )
+  let replies = session.handle(frame)
+  match @wire.parse(replies[0]) {
+    @wire.Frame::Result(result) =>
+      assert_eq(@schema.get_string(result.payload, "status"), "UnknownVendorId")
+    _ => fail("expected a CALLRESULT")
+  }
+  session.cp.register_vendor("com.example")
+  let replies2 = session.handle(frame)
+  match @wire.parse(replies2[0]) {
+    @wire.Frame::Result(result) =>
+      assert_eq(@schema.get_string(result.payload, "status"), "Accepted")
+    _ => fail("expected a CALLRESULT")
+  }
+}
+
+///|
+test "remote trigger records the requested message" {
+  let session = Session::new(ChargePoint::new("CP-32", Version::V16), clock())
+  let frame = @wire.encode(
+    @wire.Frame::Call({
+      id: "31",
+      action: "RemoteTrigger",
+      payload: @schema.obj([("requestedMessage", @schema.text("MeterValues"))]),
+    }),
+  )
+  ignore(session.handle(frame))
+  assert_eq(session.cp.last_trigger(), Some("MeterValues"))
+}
+
+///|
+test "firmware status frame updates the stored status" {
+  let session = Session::new(ChargePoint::new("CP-33", Version::V16), clock())
+  let frame = session.firmware_status_frame("Downloading")
+  assert_true(frame.contains("FirmwareStatusNotification"))
+  assert_eq(session.cp.firmware_status(), "Downloading")
+}
