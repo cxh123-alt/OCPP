@@ -67,14 +67,14 @@ cli/      命令行
 
 - 没有 WebSocket 传输层；本仓库只到报文为止。
 - 1.6 Security 扩展（证书、签名计量）不在目标内。
-- Smart Charging 保存多条曲线，composite 覆盖请求 duration，按有效期与 chargingSchedulePeriod 切分，每段取当时最高 stackLevel，高层到期后回落；不做功率/三相计算。预约在连接器非 Available 或已有预约时返回 Occupied，不做插枪核对与超时释放。
+- Smart Charging 按 purpose 组合：ChargePointMaxProfile 是整桩上限，TxProfile 覆盖 TxDefaultProfile，composite 每段取 min 并按有效期/时段切分、到期回落；不做功率/三相计算。预约在连接器非 Available 或已有预约时返回 Occupied，不做插枪核对与超时释放。
 - 时间来自注入的时钟，不读系统时间，便于复现。
 
 ## 验证
 
 ```bash
 moon check --deny-warn
-moon test --deny-warn      # 69 个用例
+moon test --deny-warn      # 72 个用例
 moon fmt --check
 moon build --target wasm
 ```

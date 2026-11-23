@@ -284,34 +284,51 @@ pub fn ChargePoint::composite_schedule(
   for index in 0..<(ordered.length() - 1) {
     let offset = ordered[index]
     let at = now_epoch + offset
-    let mut best : @v16.ChargingProfile? = None
-    for item in self.profiles {
-      if item.0 == connector_id && profile_covers(item.1, at, now_epoch) {
-        match best {
-          None => best = Some(item.1)
-          Some(current) =>
-            if item.1.stack_level > current.stack_level {
-              best = Some(item.1)
-            }
-        }
-      }
+    let station = self.select_profile(0, "ChargePointMaxProfile", at, now_epoch)
+    let tx = match
+      self.select_profile(connector_id, "TxProfile", at, now_epoch) {
+      Some(profile) => Some(profile)
+      None =>
+        self.select_profile(connector_id, "TxDefaultProfile", at, now_epoch)
     }
-    match best {
-      Some(profile) =>
-        match limit_at(profile, at, now_epoch) {
-          Some(limit) => {
-            unit = profile.charging_schedule.charging_rate_unit
-            let duplicate = if periods.length() > 0 {
-              periods[periods.length() - 1].limit == limit
-            } else {
-              false
-            }
-            if !duplicate {
-              periods.push({ start_period: offset, limit, number_phases: None, })
-            }
-          }
+    let station_limit = match station {
+      Some(profile) => limit_at(profile, at, now_epoch)
+      None => None
+    }
+    let tx_limit = match tx {
+      Some(profile) => limit_at(profile, at, now_epoch)
+      None => None
+    }
+    let limit = match (station_limit, tx_limit) {
+      (Some(station_value), Some(tx_value)) =>
+        Some(if station_value < tx_value { station_value } else { tx_value })
+      (Some(value), None) => Some(value)
+      (None, Some(value)) => Some(value)
+      (None, None) => None
+    }
+    match limit {
+      Some(value) => {
+        let unit_profile = match tx {
+          Some(profile) => Some(profile)
+          None => station
+        }
+        match unit_profile {
+          Some(profile) => unit = profile.charging_schedule.charging_rate_unit
           None => ()
         }
+        let duplicate = if periods.length() > 0 {
+          periods[periods.length() - 1].limit == value
+        } else {
+          false
+        }
+        if !duplicate {
+          periods.push({
+            start_period: offset,
+            limit: value,
+            number_phases: None,
+          })
+        }
+      }
       None => ()
     }
   }
@@ -326,6 +343,33 @@ pub fn ChargePoint::composite_schedule(
     min_charging_rate: None,
   }
   Some(schedule)
+}
+
+///|
+/// Highest stack level for one purpose at one instant. ChargePointMaxProfile is
+/// stored on connector 0; transaction profiles are stored per connector.
+fn ChargePoint::select_profile(
+  self : ChargePoint,
+  connector_id : Int,
+  purpose : String,
+  at : Int,
+  now_epoch : Int,
+) -> @v16.ChargingProfile? {
+  let mut best : @v16.ChargingProfile? = None
+  for item in self.profiles {
+    if item.0 == connector_id &&
+      item.1.charging_profile_purpose == purpose &&
+      profile_covers(item.1, at, now_epoch) {
+      match best {
+        None => best = Some(item.1)
+        Some(current) =>
+          if item.1.stack_level > current.stack_level {
+            best = Some(item.1)
+          }
+      }
+    }
+  }
+  best
 }
 
 ///|

@@ -539,3 +539,63 @@ test "update firmware stores the request" {
   ignore(session.handle(update))
   assert_true(session.cp.firmware() is Some(_))
 }
+
+///|
+fn simple_profile(purpose : String, limit : Double) -> @v16.ChargingProfile {
+  {
+    charging_profile_id: 9,
+    transaction_id: None,
+    stack_level: 0,
+    charging_profile_purpose: purpose,
+    charging_profile_kind: "Absolute",
+    recurrency_kind: None,
+    valid_from: None,
+    valid_to: None,
+    charging_schedule: {
+      duration: Some(3600),
+      start_schedule: None,
+      charging_rate_unit: "A",
+      charging_schedule_period: [
+        { start_period: 0, limit, number_phases: None, },
+      ],
+      min_charging_rate: None,
+    },
+  }
+}
+
+///|
+test "station maximum caps a higher transaction profile" {
+  let cp = ChargePoint::new("CP-25", Version::V16)
+  cp.set_profile(0, simple_profile("ChargePointMaxProfile", 16.0))
+  cp.set_profile(1, simple_profile("TxProfile", 32.0))
+  match cp.composite_schedule(1, "2026-11-07T05:00:00Z", 3600) {
+    Some(schedule) =>
+      assert_eq(schedule.charging_schedule_period[0].limit, 16.0)
+    None => fail("expected a composite schedule")
+  }
+}
+
+///|
+test "transaction profile below the station maximum wins" {
+  let cp = ChargePoint::new("CP-26", Version::V16)
+  cp.set_profile(0, simple_profile("ChargePointMaxProfile", 16.0))
+  cp.set_profile(1, simple_profile("TxProfile", 10.0))
+  match cp.composite_schedule(1, "2026-11-07T05:00:00Z", 3600) {
+    Some(schedule) =>
+      assert_eq(schedule.charging_schedule_period[0].limit, 10.0)
+    None => fail("expected a composite schedule")
+  }
+}
+
+///|
+test "tx profile overrides tx default and is capped by the station" {
+  let cp = ChargePoint::new("CP-27", Version::V16)
+  cp.set_profile(0, simple_profile("ChargePointMaxProfile", 16.0))
+  cp.set_profile(1, simple_profile("TxDefaultProfile", 20.0))
+  cp.set_profile(1, simple_profile("TxProfile", 12.0))
+  match cp.composite_schedule(1, "2026-11-07T05:00:00Z", 3600) {
+    Some(schedule) =>
+      assert_eq(schedule.charging_schedule_period[0].limit, 12.0)
+    None => fail("expected a composite schedule")
+  }
+}

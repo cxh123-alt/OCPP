@@ -14,7 +14,7 @@
 
 ## 项目简介
 
-OCPP 用 MoonBit 实现充电桩与运营后台之间的 1.6J 协议栈：JSON-RPC 信封、28 条消息、桩侧与后台侧状态机、传输接缝，以及预约、本地名单、充电曲线的状态语义。项目面向桩固件、运营平台、边缘网关与协议测试工具，提供可直接组合的库。当前版本 4690 行（含测试），69 项测试通过，GitHub Actions 每次推送执行 check、test 与 wasm 构建，当前为绿。
+OCPP 用 MoonBit 实现充电桩与运营后台之间的 1.6J 协议栈：JSON-RPC 信封、28 条消息、桩侧与后台侧状态机、传输接缝，以及预约、本地名单、充电曲线的状态语义。项目面向桩固件、运营平台、边缘网关与协议测试工具，提供可直接组合的库。当前版本 4789 行（含测试），72 项测试通过，GitHub Actions 每次推送执行 check、test 与 wasm 构建，当前为绿。
 
 ## 六功能块的语义与宿主职责
 
@@ -27,7 +27,7 @@ OCPP 用 MoonBit 实现充电桩与运营后台之间的 1.6J 协议栈：JSON-R
 | Local Auth List | 保存 listVersion 与名单，Full/Differential 合并 | 名单持久化、真实鉴权 |
 | Reservation | 同一连接器最多一条预约（当前桩模型只有连接器 1）；非 Available 或已有预约返回 `Occupied`；未知 id 取消返回 `Rejected` | 插枪核对、超时释放 |
 | Remote Trigger | 编码触发并回执 | 执行实际动作 |
-| Smart Charging | 按连接器保存多条曲线；composite 覆盖请求 duration，按 validFrom/validTo 与 chargingSchedulePeriod 切分，每段取当时最高 stackLevel，高层到期回落；按 id/connector/purpose/stack 清理 | 把限值应用到充电机、三相分配与功率控制 |
+| Smart Charging | 按连接器与 purpose 保存多条曲线；composite 覆盖请求 duration，按 ChargePointMaxProfile 整桩上限与 TxProfile/TxDefaultProfile 交易约束取 min，再按有效期/时段切分并处理到期回落 | 把限值应用到充电机、三相分配与功率控制 |
 
 完整表格与边界见 `docs/semantics.md`。
 
@@ -54,6 +54,18 @@ OCPP 用 MoonBit 实现充电桩与运营后台之间的 1.6J 协议栈：JSON-R
 ```
 
 同一连接器两条曲线，stackLevel 1 覆盖 stackLevel 0，composite 返回 10.0 A；`ClearChargingProfile` 删除后 composite 为空。
+
+**整桩上限与交易曲线冲突**
+
+整桩上限 16 A、交易曲线 32 A 时，composite 取 min，返回 16 A：
+
+| 整桩上限 | 交易曲线 | composite |
+|---|---|---|
+| 16 A | 32 A | 16 A |
+| 16 A | 10 A | 10 A |
+| 16 A | 无 TxProfile、TxDefault 20 A | 16 A |
+| 16 A | TxProfile 12 A、TxDefault 20 A | 12 A |
+
 
 **高层到期回落**
 
