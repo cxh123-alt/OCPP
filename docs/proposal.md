@@ -60,7 +60,7 @@ OCPP 用 MoonBit 实现充电桩与运营后台之间的 1.6J 协议栈：JSON-R
 - `ChargePointMaxProfile` 存在连接器 0，是整桩上限；同一 purpose 内 `stackLevel` 高者优先；
 - `TxProfile` 覆盖 `TxDefaultProfile`，两者各自取最高 `stackLevel`；
 - 每个时间段取 `min(整桩上限, 交易约束)`，只有一侧时取该侧；
-- 库负责组合与有效期/时段切分，宿主负责把限值应用到充电机并持久化。
+- 库负责组合与有效期/时段切分，宿主负责把限值应用到充电机并持久化；参与组合的曲线须使用同一 chargingRateUnit，混用单位需宿主先换算。
 
 **整桩上限与交易曲线冲突**
 
