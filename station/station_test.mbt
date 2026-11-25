@@ -669,6 +669,7 @@ fn profile_in_unit(
   purpose : String,
   limit : Double,
   unit : String,
+  phases : Int,
 ) -> @v16.ChargingProfile {
   {
     charging_profile_id: 10,
@@ -684,7 +685,7 @@ fn profile_in_unit(
       start_schedule: None,
       charging_rate_unit: unit,
       charging_schedule_period: [
-        { start_period: 0, limit, number_phases: None, },
+        { start_period: 0, limit, number_phases: Some(phases), },
       ],
       min_charging_rate: None,
     },
@@ -694,8 +695,8 @@ fn profile_in_unit(
 ///|
 test "mixed units are converted through the station voltage" {
   let cp = ChargePoint::new("CP-30", Version::V16)
-  cp.set_profile(0, profile_in_unit("ChargePointMaxProfile", 3680.0, "W"))
-  cp.set_profile(1, profile_in_unit("TxProfile", 10.0, "A"))
+  cp.set_profile(0, profile_in_unit("ChargePointMaxProfile", 3680.0, "W", 3))
+  cp.set_profile(1, profile_in_unit("TxProfile", 10.0, "A", 1))
   match cp.composite_schedule(1, "2026-11-07T05:00:00Z", 3600) {
     Some(schedule) => {
       assert_eq(schedule.charging_rate_unit, "A")
@@ -750,4 +751,34 @@ test "firmware status frame updates the stored status" {
   let frame = session.firmware_status_frame("Downloading")
   assert_true(frame.contains("FirmwareStatusNotification"))
   assert_eq(session.cp.firmware_status(), "Downloading")
+}
+
+///|
+test "phase count decides whether a transaction profile is capped" {
+  let three_phase = ChargePoint::new("CP-34", Version::V16)
+  three_phase.set_profile(
+    0,
+    profile_in_unit("ChargePointMaxProfile", 16.0, "A", 3),
+  )
+  three_phase.set_profile(1, profile_in_unit("TxProfile", 32.0, "A", 3))
+  match three_phase.composite_schedule(1, "2026-11-07T05:00:00Z", 3600) {
+    Some(schedule) => {
+      assert_eq(schedule.charging_schedule_period[0].limit, 16.0)
+      assert_eq(schedule.charging_schedule_period[0].number_phases, Some(3))
+    }
+    None => fail("expected a composite schedule")
+  }
+  let one_phase = ChargePoint::new("CP-35", Version::V16)
+  one_phase.set_profile(
+    0,
+    profile_in_unit("ChargePointMaxProfile", 16.0, "A", 3),
+  )
+  one_phase.set_profile(1, profile_in_unit("TxProfile", 32.0, "A", 1))
+  match one_phase.composite_schedule(1, "2026-11-07T05:00:00Z", 3600) {
+    Some(schedule) => {
+      assert_eq(schedule.charging_schedule_period[0].limit, 32.0)
+      assert_eq(schedule.charging_schedule_period[0].number_phases, Some(1))
+    }
+    None => fail("expected a composite schedule")
+  }
 }

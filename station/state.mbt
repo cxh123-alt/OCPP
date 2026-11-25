@@ -355,66 +355,75 @@ pub fn ChargePoint::composite_schedule(
       None =>
         self.select_profile(connector_id, "TxDefaultProfile", at, now_epoch)
     }
-    let target_unit = match tx {
-      Some(profile) => profile.charging_schedule.charging_rate_unit
-      None =>
-        match station {
-          Some(profile) => profile.charging_schedule.charging_rate_unit
-          None => "A"
-        }
-    }
-    let station_limit = match station {
+    let station_watts = match station {
       Some(profile) =>
         match limit_at(profile, at, now_epoch) {
           Some(value) =>
             Some(
-              convert_limit(
+              to_watts(
                 value,
                 profile.charging_schedule.charging_rate_unit,
-                target_unit,
                 self.voltage,
+                phases_at(profile, at, now_epoch),
               ),
             )
           None => None
         }
       None => None
     }
-    let tx_limit = match tx {
+    let tx_watts = match tx {
       Some(profile) =>
         match limit_at(profile, at, now_epoch) {
           Some(value) =>
             Some(
-              convert_limit(
+              to_watts(
                 value,
                 profile.charging_schedule.charging_rate_unit,
-                target_unit,
                 self.voltage,
+                phases_at(profile, at, now_epoch),
               ),
             )
           None => None
         }
       None => None
     }
-    let limit = match (station_limit, tx_limit) {
+    let watts = match (station_watts, tx_watts) {
       (Some(station_value), Some(tx_value)) =>
         Some(if station_value < tx_value { station_value } else { tx_value })
       (Some(value), None) => Some(value)
       (None, Some(value)) => Some(value)
       (None, None) => None
     }
-    match limit {
+    match watts {
       Some(value) => {
-        unit = target_unit
+        let out_unit = match tx {
+          Some(profile) => profile.charging_schedule.charging_rate_unit
+          None =>
+            match station {
+              Some(profile) => profile.charging_schedule.charging_rate_unit
+              None => "A"
+            }
+        }
+        let out_phases = match tx {
+          Some(profile) => phases_at(profile, at, now_epoch)
+          None =>
+            match station {
+              Some(profile) => phases_at(profile, at, now_epoch)
+              None => 3
+            }
+        }
+        let limit = from_watts(value, out_unit, self.voltage, out_phases)
+        unit = out_unit
         let duplicate = if periods.length() > 0 {
-          periods[periods.length() - 1].limit == value
+          periods[periods.length() - 1].limit == limit
         } else {
           false
         }
         if !duplicate {
           periods.push({
             start_period: offset,
-            limit: value,
-            number_phases: None,
+            limit,
+            number_phases: Some(out_phases),
           })
         }
       }
@@ -502,21 +511,64 @@ fn profile_covers(
 }
 
 ///|
-fn convert_limit(
+fn to_watts(
   value : Double,
-  from : String,
-  to : String,
+  unit : String,
   voltage : Double,
+  phases : Int,
 ) -> Double {
-  if from == to {
-    value
-  } else if from == "A" && to == "W" {
-    value * voltage
-  } else if from == "W" && to == "A" {
-    value / voltage
+  if unit == "A" {
+    value * voltage * phases.to_double()
   } else {
     value
   }
+}
+
+///|
+fn from_watts(
+  watts : Double,
+  unit : String,
+  voltage : Double,
+  phases : Int,
+) -> Double {
+  if unit == "A" {
+    watts / (voltage * phases.to_double())
+  } else {
+    watts
+  }
+}
+
+///|
+/// Phase count of the period that covers `at`; OCPP defaults to three phases
+/// when a period does not carry numberPhases.
+fn phases_at(profile : @v16.ChargingProfile, at : Int, now_epoch : Int) -> Int {
+  let start = match profile.charging_schedule.start_schedule {
+    Some(value) =>
+      match parse_iso(value) {
+        Some(epoch) => epoch
+        None => now_epoch
+      }
+    None =>
+      match profile.valid_from {
+        Some(value) =>
+          match parse_iso(value) {
+            Some(epoch) => epoch
+            None => now_epoch
+          }
+        None => now_epoch
+      }
+  }
+  let offset = at - start
+  let mut phases = 3
+  for period in profile.charging_schedule.charging_schedule_period {
+    if period.start_period <= offset {
+      phases = match period.number_phases {
+        Some(value) => value
+        None => 3
+      }
+    }
+  }
+  phases
 }
 
 ///|

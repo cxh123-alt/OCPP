@@ -68,7 +68,7 @@
 
 合计 16 + 4 + 2 + 2 + 1 + 3 = **28 / 28**。
 
-语义边界见 [semantics.md](semantics.md)：Smart Charging 按 purpose 组合，ChargePointMaxProfile 是整桩上限、TxProfile 覆盖 TxDefaultProfile，composite 每段取 min 并按有效期/时段切分、到期回落；Reservation 在连接器非 Available 或已有预约时返回对应状态，不做插枪核对与超时释放；Local Auth List 保存版本与名单，不做真实鉴权。
+语义边界见 [semantics.md](semantics.md)：Smart Charging 按 purpose 组合，ChargePointMaxProfile 是整桩上限、TxProfile 覆盖 TxDefaultProfile，composite 先把限值按电压与 numberPhases 换算成 W，再每段取 min，并按有效期/时段切分、到期回落；Reservation 在连接器非 Available 或已有预约时返回对应状态，不做插枪核对与超时释放；Local Auth List 保存版本与名单，不做真实鉴权。
 
 ## 版本识别
 

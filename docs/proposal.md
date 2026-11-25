@@ -9,8 +9,7 @@
 - GitHub：https://github.com/cxh123-alt/OCPP　　**账号：** cxh123-alt
 - 项目方向：MoonBit 充电协议库 / 桩与后台通信基础设施
 - 是否移植：否，原创项目
-- 符合性目标：OCPP 1.6J 28 条消息 + `docs/semantics.md` 的状态与调度语义
-- 当前规模：5112 行（含测试），78 项测试，CI 含 check / test / wasm 构建
+- 当前规模：5192 行（含测试），79 项测试，CI 含 check / test / wasm 构建
 
 ## 项目简介
 
@@ -25,46 +24,44 @@
 | Local Auth List | Full 替换；Differential 增删；版本过期回 `VersionMismatch` | 名单持久化、真实鉴权 |
 | Reservation | 占用/重复 → `Occupied`，`Unavailable`/`Faulted` 对应状态；`ReserveNow` 先清过期预约 | 周期调用 `release_expired`、插枪核对 |
 | Remote Trigger | 编码触发、记录 requestedMessage 并回执 | 执行实际动作 |
-| Smart Charging | 按 purpose 组合曲线，覆盖 duration，处理有效期、时段与到期回落 | 应用到充电机、三相/功率、持久化 |
+| Smart Charging | 按 purpose 组合、相数参与换算、覆盖 duration、处理有效期/时段/到期回落 | 应用到充电机、持久化 |
 
-## 跨用途曲线组合
+## 跨用途曲线组合（相数参与）
 
 - `ChargePointMaxProfile`（连接器 0）是整桩上限；同一 purpose 内 `stackLevel` 高者优先；
 - `TxProfile` 覆盖 `TxDefaultProfile`，两者各自取最高 `stackLevel`；
-- 每段取 `min(整桩上限, 交易约束)`，只有一侧时取该侧；
-- A/W 混用按桩电压换算（默认 230 V，可 `set_voltage`）；
+- 每个时间段先把限值统一换算成 **W**：A × 电压 × `numberPhases`（缺省 3 相），再取 `min`；
+- 输出保留所选曲线的 `chargingRateUnit` 与 `numberPhases`；电压默认 230 V，可 `set_voltage`；
 - 时间段按 `validFrom`/`validTo`、`duration`、`startPeriod` 切分，高层到期回落。
 
 ## 整桩上限与交易曲线冲突
 
-整桩上限 16 A、交易曲线 32 A，输出 composite 为 16 A：
+整桩上限 16 A 三相、交易曲线 32 A 三相，输出 composite 为 16 A 三相：
 
 ```json
-[2,"p1","SetChargingProfile",{"connectorId":0,"csChargingProfiles":{"chargingProfileId":1,"stackLevel":0,"chargingProfilePurpose":"ChargePointMaxProfile","chargingProfileKind":"Absolute","chargingSchedule":{"chargingRateUnit":"A","chargingSchedulePeriod":[{"startPeriod":0,"limit":16.0}]}}}]
-[2,"p2","SetChargingProfile",{"connectorId":1,"csChargingProfiles":{"chargingProfileId":2,"stackLevel":0,"chargingProfilePurpose":"TxProfile","chargingProfileKind":"Absolute","chargingSchedule":{"chargingRateUnit":"A","chargingSchedulePeriod":[{"startPeriod":0,"limit":32.0}]}}}]
+[2,"p1","SetChargingProfile",{"connectorId":0,"csChargingProfiles":{"chargingProfileId":1,"stackLevel":0,"chargingProfilePurpose":"ChargePointMaxProfile","chargingProfileKind":"Absolute","chargingSchedule":{"chargingRateUnit":"A","chargingSchedulePeriod":[{"startPeriod":0,"limit":16.0,"numberPhases":3}]}}}]
+[2,"p2","SetChargingProfile",{"connectorId":1,"csChargingProfiles":{"chargingProfileId":2,"stackLevel":0,"chargingProfilePurpose":"TxProfile","chargingProfileKind":"Absolute","chargingSchedule":{"chargingRateUnit":"A","chargingSchedulePeriod":[{"startPeriod":0,"limit":32.0,"numberPhases":3}]}}}]
 [2,"p3","GetCompositeSchedule",{"connectorId":1,"duration":3600}]
-[3,"p3",{"status":"Accepted","schedule":{"chargingRateUnit":"A","chargingSchedulePeriod":[{"startPeriod":0,"limit":16.0}]}}]
+[3,"p3",{"status":"Accepted","schedule":{"chargingRateUnit":"A","chargingSchedulePeriod":[{"startPeriod":0,"limit":16.0,"numberPhases":3}]}}]
 ```
 
 | 整桩上限 | 交易曲线 | composite |
 |---|---|---|
-| 16 A | 32 A | 16 A |
-| 16 A | 10 A | 10 A |
-| 16 A | 无 TxProfile、TxDefault 20 A | 16 A |
-| 16 A | TxProfile 12 A、TxDefault 20 A | 12 A |
+| 16 A × 3 相（11040 W） | 32 A × 3 相（22080 W） | 16 A × 3 相 |
+| 16 A × 3 相（11040 W） | 32 A × 1 相（7360 W） | 32 A × 1 相 |
+| 16 A × 3 相（11040 W） | 10 A × 3 相（6900 W） | 10 A × 3 相 |
+| 16 A × 3 相 | 无 TxProfile、TxDefault 20 A × 3 相 | 16 A × 3 相 |
 
 ## 版本识别与下发命令
 
 - 版本是连接属性：调用方从 WebSocket 子协议取得 `ocpp1.6`，作为 `ProtocolVersion` 传入；本库不实现 WebSocket；
 - 不按报文形状判别：`Heartbeat` 为 `{}`、`Reset` 为 `{"type": ...}`，形状相同只能由连接绑定决定；
-- 下发命令：`Central::command16(request)` 分配 `callId` 并编码 CALL；桩用同一绑定解码并回 CALLRESULT/CALLERROR；后台用 `Correlator` 配对，未知/重复/过期 id 不进入业务分发。
+- 下发命令：`Central::command16(request)` 分配 `callId` 并编码 CALL；桩用同一绑定解码并回 CALLRESULT/CALLERROR；后台用 `Correlator` 配对。
 
-## 符合性与边界
+## 最终符合性范围
 
-- 目标为 1.6J 六功能块协议语义；库内不做实际功率/三相计算、持久化、真实鉴权、固件下载刷写、插枪核对与预约超时释放；
-- 当前桩模型只建模连接器 1，多连接器桩需要宿主拆分；
-- 1.6 Security 扩展不在目标内；2.0.1 旧代码归档在 `archive/ocpp-2.0.1`，`master` 不包含；
-- native 目标需要系统 C 工具链，未在 CI 覆盖；WebSocket/TLS 由调用方实现。
+- **在范围内**：OCPP 1.6J 28 条消息 + 本文声明的状态与调度语义（含 purpose 组合、相数换算、有效期/时段、到期回落、预约占用、本地名单增删、固件/诊断状态、厂商白名单、trigger 记录）；
+- **不在范围内**：1.6 Security 扩展、2.0.1（归档在 `archive/ocpp-2.0.1`）、多连接器桩、实际功率/三相硬件分配、持久化、真实鉴权、固件下载刷写、WebSocket/TLS。
 
 ## 材料索引
 

@@ -18,8 +18,8 @@ OCPP 的 28 条消息只规定报文形状，不规定业务语义。本文说�
 
 | 语义 | 库负责 | 宿主负责 |
 |---|---|---|
-| 诊断 | 编码 GetDiagnostics/DiagnosticsStatusNotification | 生成诊断文件、上传 |
-| 固件 | 保存 location/retrieveDate，维护固件/诊断状态并生成 FirmwareStatusNotification / DiagnosticsStatusNotification | 下载、校验、刷写、回滚 |
+| 诊断 | 编码 GetDiagnostics/DiagnosticsStatusNotification，维护诊断状态 | 生成诊断文件、上传 |
+| 固件 | 保存 location/retrieveDate，维护固件状态并生成 FirmwareStatusNotification | 下载、校验、刷写、回滚 |
 
 ## Local Auth List
 
@@ -52,39 +52,40 @@ OCPP 的 28 条消息只规定报文形状，不规定业务语义。本文说�
 
 ## Smart Charging
 
-曲线按 `chargingProfilePurpose` 分工，库内组合规则是：
+曲线按 `chargingProfilePurpose` 分工：
 
 1. **ChargePointMaxProfile**（连接器 0）是整桩上限；同一 purpose 内取 `stackLevel` 最高者。
 2. **TxProfile** 覆盖 **TxDefaultProfile**：有 TxProfile 时忽略 TxDefaultProfile；两者各自取最高 `stackLevel`。
-3. 每个时间段取 **min(整桩上限, 交易约束)**；只有一侧存在时取该侧。
-4. 时间段按 `validFrom`/`validTo`、`chargingSchedule.duration`、`chargingSchedulePeriod.startPeriod` 切分；高层到期后该段回落到仍有效的低层。
+3. 每个时间段先把限值统一换算成 **W**：A 值 × 电压 × `numberPhases`（缺省 3 相）；再取 **min(整桩上限, 交易约束)**，只有一侧时取该侧。
+4. 输出保留所选曲线的 `chargingRateUnit` 与 `numberPhases`。
+5. 时间段按 `validFrom`/`validTo`、`chargingSchedule.duration`、`chargingSchedulePeriod.startPeriod` 切分；高层到期后该段回落到仍有效的低层。
 
 | 语义 | 库负责 | 宿主负责 |
 |---|---|---|
 | 曲线存储 | 按连接器与 purpose 保存多条 ChargingProfile | 曲线持久化 |
-| 跨用途组合 | 按上面 1–3 计算每段的有效限值；A/W 混用时按桩电压换算（默认 230 V，可配置） | 把限值应用到充电机、三相分配与功率控制；按现场电压调用 set_voltage |
-| 有效期与时段 | 按上面第 4 条切段并处理到期回落 | — |
+| 跨用途组合 | 按上面 1–4 统一到 W 后取 min，输出单位/相数来自所选曲线 | 把限值应用到充电机；按现场电压调用 set_voltage |
+| 有效期与时段 | 按第 5 条切段并处理到期回落 | — |
 | 清理 | 按 id/connector/purpose/stackLevel 过滤删除；没有匹配项时回 `Unknown` | 重新计算实际输出 |
 
-**输入输出案例：整桩上限与交易曲线冲突**
+**输入输出案例：整桩上限与交易曲线冲突（相数参与换算）**
 
-整桩上限 16 A，交易曲线 32 A：
+整桩上限 16 A 三相、交易曲线 32 A：
 
 ```json
-[2,"p1","SetChargingProfile",{"connectorId":0,"csChargingProfiles":{"chargingProfileId":1,"stackLevel":0,"chargingProfilePurpose":"ChargePointMaxProfile","chargingProfileKind":"Absolute","chargingSchedule":{"chargingRateUnit":"A","chargingSchedulePeriod":[{"startPeriod":0,"limit":16.0}]}}}]
+[2,"p1","SetChargingProfile",{"connectorId":0,"csChargingProfiles":{"chargingProfileId":1,"stackLevel":0,"chargingProfilePurpose":"ChargePointMaxProfile","chargingProfileKind":"Absolute","chargingSchedule":{"chargingRateUnit":"A","chargingSchedulePeriod":[{"startPeriod":0,"limit":16.0,"numberPhases":3}]}}}]
 [3,"p1",{"status":"Accepted"}]
-[2,"p2","SetChargingProfile",{"connectorId":1,"csChargingProfiles":{"chargingProfileId":2,"stackLevel":0,"chargingProfilePurpose":"TxProfile","chargingProfileKind":"Absolute","chargingSchedule":{"chargingRateUnit":"A","chargingSchedulePeriod":[{"startPeriod":0,"limit":32.0}]}}}]
+[2,"p2","SetChargingProfile",{"connectorId":1,"csChargingProfiles":{"chargingProfileId":2,"stackLevel":0,"chargingProfilePurpose":"TxProfile","chargingProfileKind":"Absolute","chargingSchedule":{"chargingRateUnit":"A","chargingSchedulePeriod":[{"startPeriod":0,"limit":32.0,"numberPhases":3}]}}}]
 [3,"p2",{"status":"Accepted"}]
 [2,"p3","GetCompositeSchedule",{"connectorId":1,"duration":3600}]
-[3,"p3",{"status":"Accepted","schedule":{"chargingRateUnit":"A","chargingSchedulePeriod":[{"startPeriod":0,"limit":16.0}]}}]
+[3,"p3",{"status":"Accepted","schedule":{"chargingRateUnit":"A","chargingSchedulePeriod":[{"startPeriod":0,"limit":16.0,"numberPhases":3}]}}]
 ```
 
-| 整桩上限 | 交易曲线 | composite | 依据 |
+| 整桩上限（230 V/相） | 交易曲线 | composite | 依据 |
 |---|---|---|---|
-| 16 A | 32 A | 16 A | 取 min |
-| 16 A | 10 A | 10 A | 取 min |
-| 16 A | 无 TxProfile，TxDefault 20 A | 16 A | TxDefault 作为交易约束，取 min |
-| 16 A | TxProfile 12 A，TxDefault 20 A | 12 A | TxProfile 覆盖 TxDefault，再取 min |
+| 16 A × 3 相 = 11040 W | 32 A × 3 相 = 22080 W | 16 A × 3 相 | 取 min，整桩上限生效 |
+| 16 A × 3 相 = 11040 W | 32 A × 1 相 = 7360 W | 32 A × 1 相 | 7360 W < 11040 W，交易曲线不超上限 |
+| 16 A × 3 相 = 11040 W | 10 A × 3 相 = 6900 W | 10 A × 3 相 | 交易曲线更低 |
+| 16 A × 3 相 | 无 TxProfile，TxDefault 20 A × 3 相 | 16 A × 3 相 | TxDefault 作为交易约束，取 min |
 
 **输入输出案例：高层到期回落**
 
@@ -97,7 +98,7 @@ OCPP 的 28 条消息只规定报文形状，不规定业务语义。本文说�
 
 ## 明确不在库内的部分
 
-- 不在库内计算实际充电功率、三相分配、同层曲线合并与持久化；
+- 不在库内计算实际充电功率、三相硬件分配、同层曲线合并与持久化；
 - 不在库内做插枪核对与预约超时释放；
 - 不在库内做名单持久化与真实鉴权；
 - 不在库内做固件下载、校验与刷写。
