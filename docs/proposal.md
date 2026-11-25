@@ -19,12 +19,12 @@
 
 | 功能块 | 库内语义 | 宿主职责 |
 |---|---|---|
-| Core | 会话、交易号与 RemoteStop 校验、transactionData、计量、状态、配置存储与 readonly、清缓存、连接器校验、可用性/解锁/复位、vendor/message 登记 | 真实鉴权、表计、配置生效、持久化 |
+| Core | 会话、交易号与 RemoteStop 校验、transactionData、计量、状态、配置存储与 readonly、清缓存、连接器校验、可用性/解锁/复位、DataTransfer vendor/message（未登记回 UnknownVendorId/UnknownMessageId） | 真实鉴权、表计、配置生效、持久化 |
 | Firmware Management | 保存下载地址、retries/retryInterval、诊断时间窗，维护状态并生成状态帧 | 生成诊断文件、下载、校验、刷写 |
 | Local Auth List | Full 替换；Differential 增删；版本过期回 `VersionMismatch` | 名单持久化、真实鉴权 |
 | Reservation | 占用/重复 → `Occupied`，`Unavailable`/`Faulted` 对应状态；`ReserveNow` 先清过期预约 | 周期调用 `release_expired`、插枪核对 |
 | Remote Trigger | 编码触发、记录 requestedMessage 并回执 | 执行实际动作 |
-| Smart Charging | 按 purpose 组合、相数参与换算、覆盖 duration、处理有效期/时段/到期回落 | 应用到充电机、持久化 |
+| Smart Charging | 按 purpose 组合、相数换算、Recurring 展开、minChargingRate 下限、覆盖 duration、有效期/时段/到期回落 | 应用到充电机、持久化 |
 
 ## 跨用途曲线组合（相数参与）
 
@@ -60,7 +60,7 @@
 
 ## 最终符合性范围
 
-- **在范围内**：OCPP 1.6J 28 条消息 + 本文声明的状态与调度语义（含 purpose 组合、相数换算、有效期/时段、到期回落、预约占用、本地名单增删、固件/诊断状态、厂商白名单、trigger 记录）；
+- **在范围内**：OCPP 1.6J 28 条消息 + 本文声明的状态与调度语义（含 purpose 组合、相数换算、Recurring、minChargingRate、有效期/时段、到期回落、预约占用、本地名单增删、只读配置、RemoteStop 校验、transactionData、vendor/message、固件/诊断字段、trigger 记录）；
 - **不在范围内**：1.6 Security 扩展、2.0.1（归档在 `archive/ocpp-2.0.1`）、多连接器桩、实际功率/三相硬件分配、持久化、真实鉴权、固件下载刷写、WebSocket/TLS。
 
 ## 材料索引
