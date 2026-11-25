@@ -33,6 +33,12 @@ pub(all) struct ChargePoint {
   readonly_keys : Array[String]
   mut auth_cache : Array[String]
   mut firmware : (String, String)?
+  mut firmware_retries : Int?
+  mut firmware_retry_interval : Int?
+  mut diagnostics_location : String?
+  mut diagnostics_retries : Int?
+  mut diagnostics_start : String?
+  mut diagnostics_stop : String?
   mut firmware_status : String
   mut diagnostics_status : String
   mut vendors : Array[String]
@@ -64,6 +70,12 @@ pub fn ChargePoint::new(id : String, version : Version) -> ChargePoint {
     ],
     auth_cache: [],
     firmware: None,
+    firmware_retries: None,
+    firmware_retry_interval: None,
+    diagnostics_location: None,
+    diagnostics_retries: None,
+    diagnostics_start: None,
+    diagnostics_stop: None,
     firmware_status: "Idle",
     diagnostics_status: "Idle",
     vendors: [],
@@ -399,7 +411,28 @@ pub fn ChargePoint::composite_schedule_with_unit(
       (None, Some(value)) => Some(value)
       (None, None) => None
     }
-    match watts {
+    let lower = match tx {
+      Some(profile) => min_rate_watts(profile, at, now_epoch, self.voltage)
+      None =>
+        match station {
+          Some(profile) => min_rate_watts(profile, at, now_epoch, self.voltage)
+          None => None
+        }
+    }
+    let adjusted = match watts {
+      Some(value) => {
+        let lifted = match lower {
+          Some(minimum) => if minimum > value { minimum } else { value }
+          None => value
+        }
+        match station_watts {
+          Some(ceiling) => Some(if lifted > ceiling { ceiling } else { lifted })
+          None => Some(lifted)
+        }
+      }
+      None => None
+    }
+    match adjusted {
       Some(value) => {
         let out_unit = match requested_unit {
           Some(unit) => unit
@@ -595,6 +628,27 @@ fn to_watts(
     value * voltage * phases.to_double()
   } else {
     value
+  }
+}
+
+///|
+fn min_rate_watts(
+  profile : @v16.ChargingProfile,
+  at : Int,
+  now_epoch : Int,
+  voltage : Double,
+) -> Double? {
+  match profile.charging_schedule.min_charging_rate {
+    Some(value) =>
+      Some(
+        to_watts(
+          value,
+          profile.charging_schedule.charging_rate_unit,
+          voltage,
+          phases_at(profile, at, now_epoch),
+        ),
+      )
+    None => None
   }
 }
 
@@ -860,8 +914,36 @@ pub fn ChargePoint::store_firmware(
   self : ChargePoint,
   location : String,
   date : String,
+  retries : Int?,
+  retry_interval : Int?,
 ) -> Unit {
   self.firmware = Some((location, date))
+  self.firmware_retries = retries
+  self.firmware_retry_interval = retry_interval
+}
+
+///|
+pub fn ChargePoint::store_diagnostics(
+  self : ChargePoint,
+  location : String?,
+  retries : Int?,
+  start : String?,
+  stop : String?,
+) -> Unit {
+  self.diagnostics_location = location
+  self.diagnostics_retries = retries
+  self.diagnostics_start = start
+  self.diagnostics_stop = stop
+}
+
+///|
+pub fn ChargePoint::firmware_retries(self : ChargePoint) -> Int? {
+  self.firmware_retries
+}
+
+///|
+pub fn ChargePoint::diagnostics_location(self : ChargePoint) -> String? {
+  self.diagnostics_location
 }
 
 ///|

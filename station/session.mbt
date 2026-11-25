@@ -318,7 +318,12 @@ fn Session::reply(self : Session, call : @wire.Call) -> String? {
       let request = @v16.UpdateFirmware::from_json(call.payload) catch {
         _ => return None
       }
-      self.cp.store_firmware(request.location, request.retrieve_date)
+      self.cp.store_firmware(
+        request.location,
+        request.retrieve_date,
+        request.retries,
+        request.retry_interval,
+      )
       Some(result_frame(call.id, @schema.empty()))
     }
     "GetLocalListVersion" => {
@@ -417,11 +422,20 @@ fn Session::reply(self : Session, call : @wire.Call) -> String? {
       Some(result_frame(call.id, payload.to_json()))
     }
     "GetDiagnostics" => {
-      let _request = @v16.GetDiagnostics::from_json(call.payload) catch {
+      let request = @v16.GetDiagnostics::from_json(call.payload) catch {
         _ => return None
       }
+      self.cp.store_diagnostics(
+        request.location,
+        request.retries,
+        request.start_time,
+        request.stop_time,
+      )
       let payload : @v16.GetDiagnosticsResponse = {
-        file_name: Some("diag-20261107.log"),
+        file_name: match request.location {
+          Some(_) => Some("diag-20261107.log")
+          None => None
+        },
       }
       Some(result_frame(call.id, payload.to_json()))
     }

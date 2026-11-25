@@ -18,8 +18,8 @@ OCPP 的 28 条消息只规定报文形状，不规定业务语义。本文说�
 
 | 语义 | 库负责 | 宿主负责 |
 |---|---|---|
-| 诊断 | 编码 GetDiagnostics/DiagnosticsStatusNotification，维护诊断状态 | 生成诊断文件、上传 |
-| 固件 | 保存 location/retrieveDate，维护固件状态并生成 FirmwareStatusNotification | 下载、校验、刷写、回滚 |
+| 诊断 | 编码 GetDiagnostics/DiagnosticsStatusNotification，保存 location/retries/startTime/stopTime，维护诊断状态 | 生成诊断文件、上传 |
+| 固件 | 保存 location/retrieveDate/retries/retryInterval，维护固件状态并生成 FirmwareStatusNotification | 下载、校验、刷写、回滚 |
 
 ## Local Auth List
 
@@ -60,6 +60,7 @@ OCPP 的 28 条消息只规定报文形状，不规定业务语义。本文说�
 4. 输出保留所选曲线的 `chargingRateUnit` 与 `numberPhases`；`GetCompositeSchedule` 指定 `chargingRateUnit` 时按该单位输出；时间戳支持 `Z` 与 `±HH:MM` 偏移。
 5. 时间段按 `validFrom`/`validTo`、`chargingSchedule.duration`、`chargingSchedulePeriod.startPeriod` 切分；高层到期后该段回落到仍有效的低层。
 6. `chargingProfileKind = Recurring` 时按 `recurrencyKind`（Daily/Weekly）从 `startSchedule` 循环展开，`duration` 限制每个周期内的有效段。
+7. `minChargingRate` 作为下限钳制 composite，但结果仍不超过整桩上限。
 
 | 语义 | 库负责 | 宿主负责 |
 |---|---|---|

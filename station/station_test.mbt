@@ -993,3 +993,54 @@ test "data transfer distinguishes unknown message ids" {
   session.cp.register_message("com.example", "status")
   assert_eq(status_of(session.handle(frame)[0]), "Accepted")
 }
+
+///|
+test "min charging rate raises a lower composite" {
+  let cp = ChargePoint::new("CP-44", Version::V16)
+  cp.set_profile(0, simple_profile("ChargePointMaxProfile", 10.0))
+  let mut low = simple_profile("TxDefaultProfile", 4.0)
+  low = {
+    ..low,
+    charging_schedule: {
+      ..low.charging_schedule,
+      min_charging_rate: Some(6.0),
+    },
+  }
+  cp.set_profile(1, low)
+  match cp.composite_schedule(1, "2026-11-07T05:00:00Z", 3600) {
+    Some(schedule) => assert_eq(schedule.charging_schedule_period[0].limit, 6.0)
+    None => fail("expected a composite schedule")
+  }
+}
+
+///|
+test "firmware retries and diagnostics fields are stored" {
+  let session = Session::new(ChargePoint::new("CP-45", Version::V16), clock())
+  let update = @wire.encode(
+    @wire.Frame::Call({
+      id: "70",
+      action: "UpdateFirmware",
+      payload: @schema.obj([
+        ("location", @schema.text("https://example.com/fw.bin")),
+        ("retrieveDate", @schema.text("2026-11-07T06:00:00Z")),
+        ("retries", @schema.integer(3)),
+        ("retryInterval", @schema.integer(30)),
+      ]),
+    }),
+  )
+  ignore(session.handle(update))
+  assert_eq(session.cp.firmware_retries(), Some(3))
+  let diagnostics = @wire.encode(
+    @wire.Frame::Call({
+      id: "71",
+      action: "GetDiagnostics",
+      payload: @schema.obj([
+        ("location", @schema.text("ftp://logs.example/")),
+        ("retries", @schema.integer(2)),
+      ]),
+    }),
+  )
+  let replies = session.handle(diagnostics)
+  assert_eq(session.cp.diagnostics_location(), Some("ftp://logs.example/"))
+  assert_true(replies[0].contains("fileName"))
+}
