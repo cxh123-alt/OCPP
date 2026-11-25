@@ -30,6 +30,7 @@ pub(all) struct ChargePoint {
   mut reservations : Array[(Int, String, Int)]
   mut profiles : Array[(Int, @v16.ChargingProfile)]
   mut config : Array[(String, String)]
+  readonly_keys : Array[String]
   mut auth_cache : Array[String]
   mut firmware : (String, String)?
   mut firmware_status : String
@@ -55,6 +56,7 @@ pub fn ChargePoint::new(id : String, version : Version) -> ChargePoint {
     voltage: 230.0,
     reservations: [],
     profiles: [],
+    readonly_keys: ["WebSocketPingInterval"],
     config: [
       ("WebSocketPingInterval", "60"),
       ("MeterValueSampleInterval", "300"),
@@ -499,6 +501,63 @@ fn ChargePoint::select_profile(
 }
 
 ///|
+
+///|
+/// Offset inside the schedule at `at`, or None when the schedule does not cover
+/// that instant. Recurring profiles repeat daily or weekly from startSchedule.
+fn schedule_offset(
+  profile : @v16.ChargingProfile,
+  at : Int,
+  now_epoch : Int,
+) -> Int? {
+  let explicit_start = match profile.charging_schedule.start_schedule {
+    Some(value) => parse_iso(value)
+    None => None
+  }
+  let start = match explicit_start {
+    Some(value) => value
+    None =>
+      match profile.valid_from {
+        Some(value) =>
+          match parse_iso(value) {
+            Some(epoch) => epoch
+            None => now_epoch
+          }
+        None => now_epoch
+      }
+  }
+  if at < start {
+    return None
+  }
+  let elapsed = at - start
+  match explicit_start {
+    None => Some(elapsed)
+    Some(_) =>
+      if profile.charging_profile_kind == "Recurring" {
+        let span = match profile.recurrency_kind {
+          Some("Weekly") => 604800
+          _ => 86400
+        }
+        let cycle = elapsed % span
+        match profile.charging_schedule.duration {
+          Some(duration) => if cycle < duration { Some(cycle) } else { None }
+          None => Some(cycle)
+        }
+      } else {
+        match profile.charging_schedule.duration {
+          Some(duration) =>
+            if elapsed < duration {
+              Some(elapsed)
+            } else {
+              None
+            }
+          None => Some(elapsed)
+        }
+      }
+  }
+}
+
+///|
 fn profile_covers(
   profile : @v16.ChargingProfile,
   at : Int,
@@ -520,22 +579,7 @@ fn profile_covers(
       }
     None => true
   }
-  let schedule_ok = match profile.charging_schedule.start_schedule {
-    Some(value) =>
-      match parse_iso(value) {
-        Some(start) => {
-          let end = match profile.charging_schedule.duration {
-            Some(span) => start + span
-            None => at
-          }
-          at >= start && at < end
-        }
-        None => true
-      }
-    None => true
-  }
-  ignore(now_epoch)
-  from_ok && to_ok && schedule_ok
+  from_ok && to_ok && schedule_offset(profile, at, now_epoch) is Some(_)
 }
 
 ///|
@@ -570,23 +614,10 @@ fn from_watts(
 /// Phase count of the period that covers `at`; OCPP defaults to three phases
 /// when a period does not carry numberPhases.
 fn phases_at(profile : @v16.ChargingProfile, at : Int, now_epoch : Int) -> Int {
-  let start = match profile.charging_schedule.start_schedule {
-    Some(value) =>
-      match parse_iso(value) {
-        Some(epoch) => epoch
-        None => now_epoch
-      }
-    None =>
-      match profile.valid_from {
-        Some(value) =>
-          match parse_iso(value) {
-            Some(epoch) => epoch
-            None => now_epoch
-          }
-        None => now_epoch
-      }
+  let offset = match schedule_offset(profile, at, now_epoch) {
+    Some(value) => value
+    None => 0
   }
-  let offset = at - start
   let mut phases = 3
   for period in profile.charging_schedule.charging_schedule_period {
     if period.start_period <= offset {
@@ -605,23 +636,10 @@ fn limit_at(
   at : Int,
   now_epoch : Int,
 ) -> Double? {
-  let start = match profile.charging_schedule.start_schedule {
-    Some(value) =>
-      match parse_iso(value) {
-        Some(epoch) => epoch
-        None => now_epoch
-      }
-    None =>
-      match profile.valid_from {
-        Some(value) =>
-          match parse_iso(value) {
-            Some(epoch) => epoch
-            None => now_epoch
-          }
-        None => now_epoch
-      }
+  let offset = match schedule_offset(profile, at, now_epoch) {
+    Some(value) => value
+    None => return None
   }
-  let offset = at - start
   let mut limit : Double? = None
   for period in profile.charging_schedule.charging_schedule_period {
     if period.start_period <= offset {
@@ -766,6 +784,11 @@ pub fn ChargePoint::set_config(
   key : String,
   value : String,
 ) -> String {
+  for item in self.readonly_keys {
+    if item == key {
+      return "Rejected"
+    }
+  }
   let writable = key == "WebSocketPingInterval" ||
     key == "MeterValueSampleInterval"
   if !writable {
@@ -905,4 +928,15 @@ pub fn ChargePoint::trigger(self : ChargePoint, message : String) -> Unit {
 ///|
 pub fn ChargePoint::last_trigger(self : ChargePoint) -> String? {
   self.last_trigger
+}
+
+///|
+pub fn ChargePoint::is_readonly(self : ChargePoint, key : String) -> Bool {
+  let mut found = false
+  for item in self.readonly_keys {
+    if item == key {
+      found = true
+    }
+  }
+  found
 }

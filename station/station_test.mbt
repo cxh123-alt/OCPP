@@ -884,3 +884,93 @@ test "command connector ids are validated" {
   )
   assert_eq(status_of(session.handle(remote)[0]), "Rejected")
 }
+
+///|
+fn recurring_profile() -> @v16.ChargingProfile {
+  {
+    charging_profile_id: 20,
+    transaction_id: None,
+    stack_level: 1,
+    charging_profile_purpose: "TxDefaultProfile",
+    charging_profile_kind: "Recurring",
+    recurrency_kind: Some("Daily"),
+    valid_from: None,
+    valid_to: None,
+    charging_schedule: {
+      duration: Some(1800),
+      start_schedule: Some("2026-11-07T05:00:00Z"),
+      charging_rate_unit: "A",
+      charging_schedule_period: [
+        { start_period: 0, limit: 10.0, number_phases: Some(3), },
+      ],
+      min_charging_rate: None,
+    },
+  }
+}
+
+///|
+test "recurring daily profile repeats after its duration" {
+  let cp = ChargePoint::new("CP-40", Version::V16)
+  cp.set_profile(1, simple_profile("TxDefaultProfile", 16.0))
+  cp.set_profile(1, recurring_profile())
+  match cp.composite_schedule(1, "2026-11-07T05:00:00Z", 60) {
+    Some(schedule) =>
+      assert_eq(schedule.charging_schedule_period[0].limit, 10.0)
+    None => fail("expected a composite schedule")
+  }
+  match cp.composite_schedule(1, "2026-11-07T05:30:00Z", 60) {
+    Some(schedule) =>
+      assert_eq(schedule.charging_schedule_period[0].limit, 16.0)
+    None => fail("expected a composite schedule")
+  }
+  match cp.composite_schedule(1, "2026-11-08T05:00:00Z", 60) {
+    Some(schedule) =>
+      assert_eq(schedule.charging_schedule_period[0].limit, 10.0)
+    None => fail("expected a composite schedule")
+  }
+}
+
+///|
+test "remote stop must name the current transaction" {
+  let session = Session::new(ChargePoint::new("CP-41", Version::V16), clock())
+  session.cp.begin_transaction(5)
+  let wrong = @wire.encode(
+    @wire.Frame::Call({
+      id: "50",
+      action: "RemoteStopTransaction",
+      payload: @schema.obj([("transactionId", @schema.integer(6))]),
+    }),
+  )
+  assert_eq(status_of(session.handle(wrong)[0]), "Rejected")
+  let right = @wire.encode(
+    @wire.Frame::Call({
+      id: "51",
+      action: "RemoteStopTransaction",
+      payload: @schema.obj([("transactionId", @schema.integer(5))]),
+    }),
+  )
+  assert_eq(status_of(session.handle(right)[0]), "Accepted")
+}
+
+///|
+test "readonly configuration key is refused" {
+  let session = Session::new(ChargePoint::new("CP-42", Version::V16), clock())
+  let change = @wire.encode(
+    @wire.Frame::Call({
+      id: "52",
+      action: "ChangeConfiguration",
+      payload: @schema.obj([
+        ("key", @schema.text("WebSocketPingInterval")),
+        ("value", @schema.text("30")),
+      ]),
+    }),
+  )
+  let replies = session.handle(change)
+  let frame = @wire.parse(replies[0])
+  match frame {
+    @wire.Frame::Result(result) =>
+      assert_eq(@schema.get_string(result.payload, "status"), "Rejected")
+    _ => fail("expected a result")
+  }
+  assert_true(session.cp.is_readonly("WebSocketPingInterval"))
+}

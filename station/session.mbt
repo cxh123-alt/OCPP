@@ -190,11 +190,24 @@ fn Session::reply(self : Session, call : @wire.Call) -> String? {
       Some(result_frame(call.id, payload.to_json()))
     }
     "RemoteStopTransaction" => {
-      self.cp.end_transaction()
-      let accepted : @v16.RequestStatusResponse = {
-        status: @schema.RequestStatus::Accepted,
+      let request = @v16.RemoteStopTransaction::from_json(call.payload) catch {
+        _ => return None
       }
-      Some(result_frame(call.id, accepted.to_json()))
+      let accepted = match self.cp.transaction_16 {
+        Some(id) => id == request.transaction_id && self.cp.is_charging()
+        None => false
+      }
+      if accepted {
+        self.cp.end_transaction()
+      }
+      let payload : @v16.RequestStatusResponse = {
+        status: if accepted {
+          @schema.RequestStatus::Accepted
+        } else {
+          @schema.RequestStatus::Rejected
+        },
+      }
+      Some(result_frame(call.id, payload.to_json()))
     }
     "Reset" => {
       self.cp.reset()

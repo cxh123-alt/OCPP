@@ -8,9 +8,9 @@ OCPP 的 28 条消息只规定报文形状，不规定业务语义。本文说�
 |---|---|---|
 | 启动与心跳 | 编码 BootNotification/Heartbeat，记录启动次数 | 设备序列号、固件版本、心跳间隔策略 |
 | 鉴权 | 传输 idTag，解析 idTagInfo，缓存通过的 tag | 真正查黑白名单、下发授权结果 |
-| 交易 | 维护 transactionId、meterStart/meterStop、状态迁移 | 计量表读数、交易持久化 |
+| 交易 | 维护 transactionId、meterStart/meterStop、状态迁移；RemoteStop 校验 transactionId 与当前交易 | 计量表读数、交易持久化 |
 | 状态通知 | 生成 StatusNotification，记录连接器状态 | 连接器硬件状态采集 |
-| 配置 | 保存 ChangeConfiguration 写入，GetConfiguration 按 key 返回并报告 unknownKey，ClearCache 清鉴权缓存 | 配置项对硬件的实际生效 |
+| 配置 | 保存 ChangeConfiguration 写入（只读键回 Rejected），GetConfiguration 按 key 返回并标记 readonly，ClearCache 清鉴权缓存 | 配置项对硬件的实际生效 |
 | 可用性 | ChangeAvailability/UnlockConnector 校验 connectorId（0/1 有效，其他回 Rejected/NotSupported），Reset 清交易与连接器状态 | 连接器硬件动作 |
 | 厂商透传 | 登记 vendorId；未登记的 DataTransfer 回 `UnknownVendorId` | 执行具体厂商逻辑 |
 
@@ -59,6 +59,7 @@ OCPP 的 28 条消息只规定报文形状，不规定业务语义。本文说�
 3. 每个时间段先把限值统一换算成 **W**：A 值 × 电压 × `numberPhases`（缺省 3 相）；再取 **min(整桩上限, 交易约束)**，只有一侧时取该侧。
 4. 输出保留所选曲线的 `chargingRateUnit` 与 `numberPhases`；`GetCompositeSchedule` 指定 `chargingRateUnit` 时按该单位输出；时间戳支持 `Z` 与 `±HH:MM` 偏移。
 5. 时间段按 `validFrom`/`validTo`、`chargingSchedule.duration`、`chargingSchedulePeriod.startPeriod` 切分；高层到期后该段回落到仍有效的低层。
+6. `chargingProfileKind = Recurring` 时按 `recurrencyKind`（Daily/Weekly）从 `startSchedule` 循环展开，`duration` 限制每个周期内的有效段。
 
 | 语义 | 库负责 | 宿主负责 |
 |---|---|---|

@@ -9,7 +9,7 @@
 - GitHub：https://github.com/cxh123-alt/OCPP　　**账号：** cxh123-alt
 - 项目方向：MoonBit 充电协议库 / 桩与后台通信基础设施
 - 是否移植：否，原创项目
-- 当前规模：5353 行（含测试），83 项测试，CI 含 check / test / wasm 构建
+- 当前规模：5483 行（含测试），86 项测试，CI 含 check / test / wasm 构建
 
 ## 项目简介
 
@@ -19,7 +19,7 @@
 
 | 功能块 | 库内语义 | 宿主职责 |
 |---|---|---|
-| Core | 会话、交易号、计量、状态、配置存储与查询、清缓存、连接器校验、可用性/解锁/复位、厂商透传登记 | 真实鉴权、表计、配置生效、持久化 |
+| Core | 会话、交易号与 RemoteStop 校验、计量、状态、配置存储与 readonly、清缓存、连接器校验、可用性/解锁/复位、厂商透传登记 | 真实鉴权、表计、配置生效、持久化 |
 | Firmware Management | 保存下载地址，维护固件/诊断状态并生成状态帧 | 生成诊断文件、下载、校验、刷写 |
 | Local Auth List | Full 替换；Differential 增删；版本过期回 `VersionMismatch` | 名单持久化、真实鉴权 |
 | Reservation | 占用/重复 → `Occupied`，`Unavailable`/`Faulted` 对应状态；`ReserveNow` 先清过期预约 | 周期调用 `release_expired`、插枪核对 |
@@ -32,7 +32,7 @@
 - `TxProfile` 覆盖 `TxDefaultProfile`，但只匹配其 `transactionId`（或未指定）；两者各自取最高 `stackLevel`；
 - 每个时间段先把限值统一换算成 **W**：A × 电压 × `numberPhases`（缺省 3 相），再取 `min`；
 - 输出保留所选曲线的单位与相数；请求指定 `chargingRateUnit` 时按该单位输出；时间戳支持 `Z` 与 `±HH:MM`；电压默认 230 V，可 `set_voltage`；
-- 时间段按 `validFrom`/`validTo`、`duration`、`startPeriod` 切分，高层到期回落。
+- 时间段按 `validFrom`/`validTo`、`duration`、`startPeriod` 切分，高层到期回落；Recurring 曲线按 Daily/Weekly 从 startSchedule 循环展开。
 
 ## 整桩上限与交易曲线冲突
 
