@@ -290,11 +290,12 @@ pub fn ChargePoint::clear_profiles(
 /// boundary the highest stack level among the profiles that cover that instant
 /// wins; a profile whose validTo or schedule duration ends mid-window gives way
 /// to the lower profile, so the returned periods contain the fallback.
-pub fn ChargePoint::composite_schedule(
+pub fn ChargePoint::composite_schedule_with_unit(
   self : ChargePoint,
   connector_id : Int,
   now : String,
   duration : Int,
+  requested_unit : String?,
 ) -> @v16.ChargingSchedule? {
   let now_epoch = match parse_iso(now) {
     Some(value) => value
@@ -396,12 +397,16 @@ pub fn ChargePoint::composite_schedule(
     }
     match watts {
       Some(value) => {
-        let out_unit = match tx {
-          Some(profile) => profile.charging_schedule.charging_rate_unit
+        let out_unit = match requested_unit {
+          Some(unit) => unit
           None =>
-            match station {
+            match tx {
               Some(profile) => profile.charging_schedule.charging_rate_unit
-              None => "A"
+              None =>
+                match station {
+                  Some(profile) => profile.charging_schedule.charging_rate_unit
+                  None => "A"
+                }
             }
         }
         let out_phases = match tx {
@@ -444,6 +449,16 @@ pub fn ChargePoint::composite_schedule(
 }
 
 ///|
+pub fn ChargePoint::composite_schedule(
+  self : ChargePoint,
+  connector_id : Int,
+  now : String,
+  duration : Int,
+) -> @v16.ChargingSchedule? {
+  self.composite_schedule_with_unit(connector_id, now, duration, None)
+}
+
+///|
 /// Highest stack level for one purpose at one instant. ChargePointMaxProfile is
 /// stored on connector 0; transaction profiles are stored per connector.
 fn ChargePoint::select_profile(
@@ -455,8 +470,21 @@ fn ChargePoint::select_profile(
 ) -> @v16.ChargingProfile? {
   let mut best : @v16.ChargingProfile? = None
   for item in self.profiles {
+    let transaction_ok = if purpose == "TxProfile" {
+      match item.1.transaction_id {
+        Some(id) =>
+          match self.transaction_16 {
+            Some(current) => current == id
+            None => false
+          }
+        None => true
+      }
+    } else {
+      true
+    }
     if item.0 == connector_id &&
       item.1.charging_profile_purpose == purpose &&
+      transaction_ok &&
       profile_covers(item.1, at, now_epoch) {
       match best {
         None => best = Some(item.1)
@@ -633,7 +661,8 @@ fn unique_sorted(values : Array[Int]) -> Array[Int] {
 
 ///|
 fn parse_iso(text : String) -> Int? {
-  if text.length() != 20 {
+  let length = text.length()
+  if length != 20 && length != 25 {
     return None
   }
   let ch = fn(index : Int) -> Int? {
@@ -663,16 +692,37 @@ fn parse_iso(text : String) -> Int? {
     ch(7) != Some(45) ||
     ch(10) != Some(84) ||
     ch(13) != Some(58) ||
-    ch(16) != Some(58) ||
-    ch(19) != Some(90) {
+    ch(16) != Some(58) {
+    return None
+  }
+  let zone_ok = if length == 20 {
+    ch(19) == Some(90)
+  } else {
+    let sign_ok = ch(19) == Some(43) || ch(19) == Some(45)
+    sign_ok && ch(22) == Some(58)
+  }
+  if !zone_ok {
     return None
   }
   match (digit(0), digit(1), digit(2), digit(3)) {
     (Some(a), Some(b), Some(c), Some(d)) => {
       let year = a * 1000 + b * 100 + c * 10 + d
       match (two(5), two(8), two(11), two(14), two(17)) {
-        (Some(month), Some(day), Some(hour), Some(minute), Some(second)) =>
-          Some(epoch_of(year, month, day, hour, minute, second))
+        (Some(month), Some(day), Some(hour), Some(minute), Some(second)) => {
+          let base = epoch_of(year, month, day, hour, minute, second)
+          if length == 20 {
+            Some(base)
+          } else {
+            match (digit(20), digit(21), digit(23), digit(24)) {
+              (Some(h1), Some(h2), Some(m1), Some(m2)) => {
+                let offset = (h1 * 10 + h2) * 3600 + (m1 * 10 + m2) * 60
+                let sign = if ch(19) == Some(43) { 1 } else { -1 }
+                Some(base - sign * offset)
+              }
+              _ => None
+            }
+          }
+        }
         _ => None
       }
     }

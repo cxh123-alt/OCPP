@@ -10,7 +10,7 @@ fn clock() -> @schema.ClockTime {
 test "1.6 boot carries the model and vendor" {
   let session = Session::new(ChargePoint::new("CP-1", Version::V16), clock())
   let text = session.boot_frame()
-  let frame = @wire.parse(text)
+  let frame = @wire.parse(text) catch { _ => fail("expected a frame") }
   match frame {
     @wire.Frame::Call(call) => {
       assert_eq(call.action, "BootNotification")
@@ -781,4 +781,106 @@ test "phase count decides whether a transaction profile is capped" {
     }
     None => fail("expected a composite schedule")
   }
+}
+
+///|
+test "tx profile only applies to its own transaction" {
+  let cp = ChargePoint::new("CP-36", Version::V16)
+  cp.set_profile(1, simple_profile("TxDefaultProfile", 20.0))
+  let mut tx = simple_profile("TxProfile", 10.0)
+  tx = { ..tx, transaction_id: Some(5), }
+  cp.set_profile(1, tx)
+  match cp.composite_schedule(1, "2026-11-07T05:00:00Z", 3600) {
+    Some(schedule) =>
+      assert_eq(schedule.charging_schedule_period[0].limit, 20.0)
+    None => fail("expected a composite schedule")
+  }
+  cp.begin_transaction(5)
+  match cp.composite_schedule(1, "2026-11-07T05:00:00Z", 3600) {
+    Some(schedule) =>
+      assert_eq(schedule.charging_schedule_period[0].limit, 10.0)
+    None => fail("expected a composite schedule")
+  }
+}
+
+///|
+test "requested rate unit is honoured" {
+  let cp = ChargePoint::new("CP-37", Version::V16)
+  cp.set_profile(1, profile_in_unit("TxProfile", 10.0, "A", 3))
+  match
+    cp.composite_schedule_with_unit(1, "2026-11-07T05:00:00Z", 3600, Some("W")) {
+    Some(schedule) => {
+      assert_eq(schedule.charging_rate_unit, "W")
+      assert_eq(schedule.charging_schedule_period[0].limit, 6900.0)
+    }
+    None => fail("expected a composite schedule")
+  }
+}
+
+///|
+test "timestamps with offsets are parsed" {
+  let cp = ChargePoint::new("CP-38", Version::V16)
+  cp.set_profile(1, simple_profile("TxDefaultProfile", 16.0))
+  let mut high = simple_profile("TxProfile", 10.0)
+  high = {
+    ..high,
+    stack_level: 1,
+    valid_from: Some("2026-11-07T12:00:00+08:00"),
+    valid_to: Some("2026-11-07T14:00:00+08:00"),
+  }
+  cp.set_profile(1, high)
+  match cp.composite_schedule(1, "2026-11-07T05:00:00Z", 7200) {
+    Some(schedule) => {
+      assert_eq(schedule.charging_schedule_period[0].limit, 10.0)
+      assert_eq(schedule.charging_schedule_period[1].limit, 16.0)
+    }
+    None => fail("expected a composite schedule")
+  }
+}
+
+///|
+fn status_of(text : String) -> String {
+  let frame = @wire.parse(text) catch { _ => return "no-result" }
+  match frame {
+    @wire.Frame::Result(result) =>
+      @schema.get_string(result.payload, "status") catch {
+        _ => "no-result"
+      }
+    _ => "no-result"
+  }
+}
+
+///|
+test "command connector ids are validated" {
+  let session = Session::new(ChargePoint::new("CP-39", Version::V16), clock())
+  let availability = @wire.encode(
+    @wire.Frame::Call({
+      id: "40",
+      action: "ChangeAvailability",
+      payload: @schema.obj([
+        ("connectorId", @schema.integer(2)),
+        ("type", @schema.text("Inoperative")),
+      ]),
+    }),
+  )
+  assert_eq(status_of(session.handle(availability)[0]), "Rejected")
+  let unlock = @wire.encode(
+    @wire.Frame::Call({
+      id: "41",
+      action: "UnlockConnector",
+      payload: @schema.obj([("connectorId", @schema.integer(2))]),
+    }),
+  )
+  assert_eq(status_of(session.handle(unlock)[0]), "NotSupported")
+  let remote = @wire.encode(
+    @wire.Frame::Call({
+      id: "42",
+      action: "RemoteStartTransaction",
+      payload: @schema.obj([
+        ("idTag", @schema.text("TAG-1")),
+        ("connectorId", @schema.integer(2)),
+      ]),
+    }),
+  )
+  assert_eq(status_of(session.handle(remote)[0]), "Rejected")
 }

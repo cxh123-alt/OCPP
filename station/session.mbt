@@ -172,7 +172,11 @@ fn Session::reply(self : Session, call : @wire.Call) -> String? {
       let request = @v16.RemoteStartTransaction::from_json(call.payload) catch {
         _ => return None
       }
-      let accepted = request.id_tag.length() > 0
+      let connector_ok = match request.connector_id {
+        Some(id) => id == 0 || id == 1
+        None => true
+      }
+      let accepted = request.id_tag.length() > 0 && connector_ok
       if accepted {
         self.cp.begin_transaction(101)
       }
@@ -261,8 +265,13 @@ fn Session::reply(self : Session, call : @wire.Call) -> String? {
       let request = @v16.ChangeAvailability::from_json(call.payload) catch {
         _ => return None
       }
-      self.cp.set_available(request.kind == "Operative")
-      let payload : @v16.ChangeAvailabilityResponse = { status: "Accepted", }
+      let status = if request.connector_id == 0 || request.connector_id == 1 {
+        self.cp.set_available(request.kind == "Operative")
+        "Accepted"
+      } else {
+        "Rejected"
+      }
+      let payload : @v16.ChangeAvailabilityResponse = { status, }
       Some(result_frame(call.id, payload.to_json()))
     }
     "ClearCache" => {
@@ -279,11 +288,16 @@ fn Session::reply(self : Session, call : @wire.Call) -> String? {
       Some(result_frame(call.id, payload.to_json()))
     }
     "UnlockConnector" => {
-      let _request = @v16.UnlockConnector::from_json(call.payload) catch {
+      let request = @v16.UnlockConnector::from_json(call.payload) catch {
         _ => return None
       }
-      self.cp.unlock()
-      let payload : @v16.UnlockConnectorResponse = { status: "Unlocked", }
+      let status = if request.connector_id == 0 || request.connector_id == 1 {
+        self.cp.unlock()
+        "Unlocked"
+      } else {
+        "NotSupported"
+      }
+      let payload : @v16.UnlockConnectorResponse = { status, }
       Some(result_frame(call.id, payload.to_json()))
     }
     "UpdateFirmware" => {
@@ -379,10 +393,11 @@ fn Session::reply(self : Session, call : @wire.Call) -> String? {
       }
       let payload : @v16.GetCompositeScheduleResponse = {
         status: "Accepted",
-        schedule: self.cp.composite_schedule(
+        schedule: self.cp.composite_schedule_with_unit(
           request.connector_id,
           self.now(),
           request.duration,
+          request.charging_rate_unit,
         ),
       }
       Some(result_frame(call.id, payload.to_json()))
