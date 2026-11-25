@@ -36,6 +36,7 @@ pub(all) struct ChargePoint {
   mut firmware_status : String
   mut diagnostics_status : String
   mut vendors : Array[String]
+  mut message_routes : Array[(String, String)]
   mut last_trigger : String?
   mut booted : Bool
 } derive(Debug, Eq)
@@ -66,6 +67,7 @@ pub fn ChargePoint::new(id : String, version : Version) -> ChargePoint {
     firmware_status: "Idle",
     diagnostics_status: "Idle",
     vendors: [],
+    message_routes: [],
     last_trigger: None,
     booted: false,
   }
@@ -880,6 +882,7 @@ pub fn ChargePoint::register_vendor(
 pub fn ChargePoint::data_transfer(
   self : ChargePoint,
   vendor : String,
+  message_id : String?,
 ) -> String {
   let mut known = false
   for item in self.vendors {
@@ -887,11 +890,34 @@ pub fn ChargePoint::data_transfer(
       known = true
     }
   }
-  if known {
-    "Accepted"
-  } else {
-    "UnknownVendorId"
+  if !known {
+    return "UnknownVendorId"
   }
+  match message_id {
+    None => "Accepted"
+    Some(message) => {
+      let mut routed = false
+      for item in self.message_routes {
+        if item.0 == vendor && item.1 == message {
+          routed = true
+        }
+      }
+      if routed {
+        "Accepted"
+      } else {
+        "UnknownMessageId"
+      }
+    }
+  }
+}
+
+///|
+pub fn ChargePoint::register_message(
+  self : ChargePoint,
+  vendor : String,
+  message : String,
+) -> Unit {
+  self.message_routes.push((vendor, message))
 }
 
 ///|

@@ -237,6 +237,7 @@ pub(all) struct StopTransaction {
   meter_stop : Int
   timestamp : String
   reason : String?
+  transaction_data : Array[MeterValue]?
 } derive(Debug, Eq)
 
 ///|
@@ -248,6 +249,16 @@ pub fn StopTransaction::to_json(self : StopTransaction) -> Json {
   ]
   match self.reason {
     Some(value) => fields.push(("reason", @schema.text(value)))
+    None => ()
+  }
+  match self.transaction_data {
+    Some(values) =>
+      fields.push(
+        (
+          "transactionData",
+          Json::array(values.map(fn(item) { item.to_json() })),
+        ),
+      )
     None => ()
   }
   @schema.obj(fields)
@@ -262,7 +273,22 @@ pub fn StopTransaction::from_json(
     meter_stop: @schema.get_int(json, "meterStop"),
     timestamp: @schema.get_string(json, "timestamp"),
     reason: @schema.opt_string(json, "reason"),
+    transaction_data: match @schema.opt_array(json, "transactionData") {
+      Some(items) => Some(meter_values_of(items))
+      None => None
+    },
   }
+}
+
+///|
+fn meter_values_of(
+  items : Array[Json],
+) -> Array[MeterValue] raise @schema.SchemaError {
+  let result : Array[MeterValue] = []
+  for item in items {
+    result.push(MeterValue::from_json(item))
+  }
+  result
 }
 
 ///|

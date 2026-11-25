@@ -8,11 +8,11 @@ OCPP 的 28 条消息只规定报文形状，不规定业务语义。本文说�
 |---|---|---|
 | 启动与心跳 | 编码 BootNotification/Heartbeat，记录启动次数 | 设备序列号、固件版本、心跳间隔策略 |
 | 鉴权 | 传输 idTag，解析 idTagInfo，缓存通过的 tag | 真正查黑白名单、下发授权结果 |
-| 交易 | 维护 transactionId、meterStart/meterStop、状态迁移；RemoteStop 校验 transactionId 与当前交易 | 计量表读数、交易持久化 |
+| 交易 | 维护 transactionId、meterStart/meterStop、状态迁移；RemoteStop 校验 transactionId 与当前交易；StopTransaction 携带 transactionData | 计量表读数、交易持久化 |
 | 状态通知 | 生成 StatusNotification，记录连接器状态 | 连接器硬件状态采集 |
 | 配置 | 保存 ChangeConfiguration 写入（只读键回 Rejected），GetConfiguration 按 key 返回并标记 readonly，ClearCache 清鉴权缓存 | 配置项对硬件的实际生效 |
 | 可用性 | ChangeAvailability/UnlockConnector 校验 connectorId（0/1 有效，其他回 Rejected/NotSupported），Reset 清交易与连接器状态 | 连接器硬件动作 |
-| 厂商透传 | 登记 vendorId；未登记的 DataTransfer 回 `UnknownVendorId` | 执行具体厂商逻辑 |
+| 厂商透传 | 登记 vendorId 与 messageId；未登记 vendor 回 `UnknownVendorId`，未登记 message 回 `UnknownMessageId` | 执行具体厂商逻辑 |
 
 ## Firmware Management
 

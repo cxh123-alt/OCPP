@@ -125,6 +125,7 @@ pub fn Session::stop_frame(
       meter_stop: self.cp.meter_wh,
       timestamp: self.now(),
       reason: Some(reason),
+      transaction_data: None,
     }),
   )
 }
@@ -296,7 +297,7 @@ fn Session::reply(self : Session, call : @wire.Call) -> String? {
       let request = @v16.DataTransfer::from_json(call.payload) catch {
         _ => return None
       }
-      let status = self.cp.data_transfer(request.vendor_id)
+      let status = self.cp.data_transfer(request.vendor_id, request.message_id)
       let payload : @v16.DataTransferResponse = { status, data: None, }
       Some(result_frame(call.id, payload.to_json()))
     }

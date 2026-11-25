@@ -974,3 +974,22 @@ test "readonly configuration key is refused" {
   }
   assert_true(session.cp.is_readonly("WebSocketPingInterval"))
 }
+
+///|
+test "data transfer distinguishes unknown message ids" {
+  let session = Session::new(ChargePoint::new("CP-43", Version::V16), clock())
+  session.cp.register_vendor("com.example")
+  let frame = @wire.encode(
+    @wire.Frame::Call({
+      id: "60",
+      action: "DataTransfer",
+      payload: @schema.obj([
+        ("vendorId", @schema.text("com.example")),
+        ("messageId", @schema.text("status")),
+      ]),
+    }),
+  )
+  assert_eq(status_of(session.handle(frame)[0]), "UnknownMessageId")
+  session.cp.register_message("com.example", "status")
+  assert_eq(status_of(session.handle(frame)[0]), "Accepted")
+}

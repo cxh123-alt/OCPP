@@ -363,3 +363,17 @@ test "all 1.6J actions are addressable" {
   ]
   assert_eq(names.length(), 28)
 }
+
+///|
+test "stop transaction carries transaction data" {
+  let request : StopTransaction = {
+    transaction_id: 1,
+    meter_stop: 1000,
+    timestamp: "2026-11-07T06:00:00Z",
+    reason: None,
+    transaction_data: Some([
+      { timestamp: "2026-11-07T05:30:00Z", sampled_value: [], },
+    ]),
+  }
+  assert_eq(StopTransaction::from_json(request.to_json()), request)
+}
