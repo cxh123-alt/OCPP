@@ -56,11 +56,11 @@ OCPP 的 28 条消息只规定报文形状，不规定业务语义。本文说�
 
 1. **ChargePointMaxProfile**（连接器 0）是整桩上限；同一 purpose 内取 `stackLevel` 最高者。
 2. **TxProfile** 覆盖 **TxDefaultProfile**：TxProfile 只在与当前 `transactionId` 一致（或未指定 transactionId）时参与；两者各自取最高 `stackLevel`。
-3. 每个时间段先把限值统一换算成 **W**：A 值 × 电压 × `numberPhases`（缺省 3 相）；再取 **min(整桩上限, 交易约束)**，只有一侧时取该侧。
+3. 每个时间段先把限值换算成**每相电流**：A 值直接使用；W 值除以（电压 × `numberPhases`，缺省 3 相）。再取 **min(整桩每相上限, 交易每相电流)**，只有一侧时取该侧；单相 32 A 不能突破三相 16 A 的每相上限。
 4. 输出保留所选曲线的 `chargingRateUnit` 与 `numberPhases`；`GetCompositeSchedule` 指定 `chargingRateUnit` 时按该单位输出；时间戳支持 `Z` 与 `±HH:MM` 偏移。
 5. 时间段按 `validFrom`/`validTo`、`chargingSchedule.duration`、`chargingSchedulePeriod.startPeriod` 切分；高层到期后该段回落到仍有效的低层。
 6. `chargingProfileKind = Recurring` 时按 `recurrencyKind`（Daily/Weekly）从 `startSchedule` 循环展开，`duration` 限制每个周期内的有效段。
-7. `minChargingRate` 作为下限钳制 composite，但结果仍不超过整桩上限。
+7. 有效每相电流低于 `minChargingRate` 时输出 0（暂停充电），不把限值抬高到最小速率，也不突破交易曲线的最大值。
 
 | 语义 | 库负责 | 宿主负责 |
 |---|---|---|
@@ -85,9 +85,10 @@ OCPP 的 28 条消息只规定报文形状，不规定业务语义。本文说�
 | 整桩上限（230 V/相） | 交易曲线 | composite | 依据 |
 |---|---|---|---|
 | 16 A × 3 相 = 11040 W | 32 A × 3 相 = 22080 W | 16 A × 3 相 | 取 min，整桩上限生效 |
-| 16 A × 3 相 = 11040 W | 32 A × 1 相 = 7360 W | 32 A × 1 相 | 7360 W < 11040 W，交易曲线不超上限 |
+| 16 A × 3 相 | 32 A × 1 相 | 16 A × 1 相 | 单相 32 A 超过每相 16 A 上限，取每相 min |
 | 16 A × 3 相 = 11040 W | 10 A × 3 相 = 6900 W | 10 A × 3 相 | 交易曲线更低 |
 | 16 A × 3 相 | 无 TxProfile，TxDefault 20 A × 3 相 | 16 A × 3 相 | TxDefault 作为交易约束，取 min |
+| 10 A × 3 相 | 4 A × 3 相，minChargingRate 6 A | 0（暂停） | 4 A 低于最小速率，暂停而不是抬高到 6 A |
 
 **输入输出案例：高层到期回落**
 

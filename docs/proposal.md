@@ -9,7 +9,7 @@
 - GitHub：https://github.com/cxh123-alt/OCPP　　**账号：** cxh123-alt
 - 项目方向：MoonBit 充电协议库 / 桩与后台通信基础设施
 - 是否移植：否，原创项目
-- 当前规模：5706 行（含测试），90 项测试，CI 含 check / test / wasm 构建
+- 当前规模：5666 行（含测试），90 项测试，CI 含 check / test / wasm 构建
 
 ## 项目简介
 
@@ -30,9 +30,9 @@
 
 - `ChargePointMaxProfile`（连接器 0）是整桩上限；同一 purpose 内 `stackLevel` 高者优先；
 - `TxProfile` 覆盖 `TxDefaultProfile`，但只匹配其 `transactionId`（或未指定）；两者各自取最高 `stackLevel`；
-- 每个时间段先把限值统一换算成 **W**：A × 电压 × `numberPhases`（缺省 3 相），再取 `min`；
+- 每个时间段先把限值换算成**每相电流**：A 直接使用，W 除以（电压 × 相数）；再取 `min(整桩每相上限, 交易每相电流)`；单相 32 A 不能突破三相 16 A 的每相上限；
 - 输出保留所选曲线的单位与相数；请求指定 `chargingRateUnit` 时按该单位输出；时间戳支持 `Z` 与 `±HH:MM`；电压默认 230 V，可 `set_voltage`；
-- 时间段按 `validFrom`/`validTo`、`duration`、`startPeriod` 切分，高层到期回落；Recurring 曲线按 Daily/Weekly 展开；`minChargingRate` 作为下限钳制且不超过整桩上限。
+- 时间段按 `validFrom`/`validTo`、`duration`、`startPeriod` 切分，高层到期回落；Recurring 曲线按 Daily/Weekly 展开；有效电流低于 `minChargingRate` 时输出 0（暂停），不抬高到最小速率。
 
 ## 整桩上限与交易曲线冲突
 
@@ -48,9 +48,10 @@
 | 整桩上限 | 交易曲线 | composite |
 |---|---|---|
 | 16 A × 3 相（11040 W） | 32 A × 3 相（22080 W） | 16 A × 3 相 |
-| 16 A × 3 相（11040 W） | 32 A × 1 相（7360 W） | 32 A × 1 相 |
+| 16 A × 3 相 | 32 A × 1 相 | 16 A × 1 相 |
 | 16 A × 3 相（11040 W） | 10 A × 3 相（6900 W） | 10 A × 3 相 |
 | 16 A × 3 相 | 无 TxProfile、TxDefault 20 A × 3 相 | 16 A × 3 相 |
+| 10 A × 3 相 | 4 A × 3 相、minChargingRate 6 A | 0（暂停） |
 
 ## 版本识别与下发命令
 

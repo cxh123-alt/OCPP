@@ -372,68 +372,23 @@ pub fn ChargePoint::composite_schedule_with_unit(
       None =>
         self.select_profile(connector_id, "TxDefaultProfile", at, now_epoch)
     }
-    let station_watts = match station {
-      Some(profile) =>
-        match limit_at(profile, at, now_epoch) {
-          Some(value) =>
-            Some(
-              to_watts(
-                value,
-                profile.charging_schedule.charging_rate_unit,
-                self.voltage,
-                phases_at(profile, at, now_epoch),
-              ),
-            )
-          None => None
-        }
+    let station_current = match station {
+      Some(profile) => current_at(profile, at, now_epoch, self.voltage)
       None => None
     }
-    let tx_watts = match tx {
-      Some(profile) =>
-        match limit_at(profile, at, now_epoch) {
-          Some(value) =>
-            Some(
-              to_watts(
-                value,
-                profile.charging_schedule.charging_rate_unit,
-                self.voltage,
-                phases_at(profile, at, now_epoch),
-              ),
-            )
-          None => None
-        }
+    let tx_current = match tx {
+      Some(profile) => current_at(profile, at, now_epoch, self.voltage)
       None => None
     }
-    let watts = match (station_watts, tx_watts) {
-      (Some(station_value), Some(tx_value)) =>
-        Some(if station_value < tx_value { station_value } else { tx_value })
+    let effective = match (tx_current, station_current) {
+      (Some(tx_value), Some(station_value)) =>
+        Some(if tx_value < station_value { tx_value } else { station_value })
       (Some(value), None) => Some(value)
       (None, Some(value)) => Some(value)
       (None, None) => None
     }
-    let lower = match tx {
-      Some(profile) => min_rate_watts(profile, at, now_epoch, self.voltage)
-      None =>
-        match station {
-          Some(profile) => min_rate_watts(profile, at, now_epoch, self.voltage)
-          None => None
-        }
-    }
-    let adjusted = match watts {
-      Some(value) => {
-        let lifted = match lower {
-          Some(minimum) => if minimum > value { minimum } else { value }
-          None => value
-        }
-        match station_watts {
-          Some(ceiling) => Some(if lifted > ceiling { ceiling } else { lifted })
-          None => Some(lifted)
-        }
-      }
-      None => None
-    }
-    match adjusted {
-      Some(value) => {
+    match effective {
+      Some(current_value) => {
         let out_unit = match requested_unit {
           Some(unit) => unit
           None =>
@@ -454,7 +409,26 @@ pub fn ChargePoint::composite_schedule_with_unit(
               None => 3
             }
         }
-        let limit = from_watts(value, out_unit, self.voltage, out_phases)
+        let minimum = match tx {
+          Some(profile) => min_current_at(profile, at, now_epoch, self.voltage)
+          None =>
+            match station {
+              Some(profile) =>
+                min_current_at(profile, at, now_epoch, self.voltage)
+              None => None
+            }
+        }
+        let paused = match minimum {
+          Some(value) => current_value < value
+          None => false
+        }
+        let limit = if paused {
+          0.0
+        } else if out_unit == "A" {
+          current_value
+        } else {
+          current_value * self.voltage * out_phases.to_double()
+        }
         unit = out_unit
         let duplicate = if periods.length() > 0 {
           periods[periods.length() - 1].limit == limit
@@ -618,21 +592,25 @@ fn profile_covers(
 }
 
 ///|
-fn to_watts(
-  value : Double,
-  unit : String,
+fn current_at(
+  profile : @v16.ChargingProfile,
+  at : Int,
+  now_epoch : Int,
   voltage : Double,
-  phases : Int,
-) -> Double {
-  if unit == "A" {
-    value * voltage * phases.to_double()
-  } else {
-    value
+) -> Double? {
+  match limit_at(profile, at, now_epoch) {
+    Some(value) =>
+      if profile.charging_schedule.charging_rate_unit == "A" {
+        Some(value)
+      } else {
+        Some(value / (voltage * phases_at(profile, at, now_epoch).to_double()))
+      }
+    None => None
   }
 }
 
 ///|
-fn min_rate_watts(
+fn min_current_at(
   profile : @v16.ChargingProfile,
   at : Int,
   now_epoch : Int,
@@ -640,35 +618,16 @@ fn min_rate_watts(
 ) -> Double? {
   match profile.charging_schedule.min_charging_rate {
     Some(value) =>
-      Some(
-        to_watts(
-          value,
-          profile.charging_schedule.charging_rate_unit,
-          voltage,
-          phases_at(profile, at, now_epoch),
-        ),
-      )
+      if profile.charging_schedule.charging_rate_unit == "A" {
+        Some(value)
+      } else {
+        Some(value / (voltage * phases_at(profile, at, now_epoch).to_double()))
+      }
     None => None
   }
 }
 
 ///|
-fn from_watts(
-  watts : Double,
-  unit : String,
-  voltage : Double,
-  phases : Int,
-) -> Double {
-  if unit == "A" {
-    watts / (voltage * phases.to_double())
-  } else {
-    watts
-  }
-}
-
-///|
-/// Phase count of the period that covers `at`; OCPP defaults to three phases
-/// when a period does not carry numberPhases.
 fn phases_at(profile : @v16.ChargingProfile, at : Int, now_epoch : Int) -> Int {
   let offset = match schedule_offset(profile, at, now_epoch) {
     Some(value) => value
